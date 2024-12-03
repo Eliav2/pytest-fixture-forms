@@ -4,8 +4,13 @@ from typing import Any
 import pytest
 
 from pytest_fixture_forms.runtime import pytest_internals
-from pytest_fixture_forms.utils import create_dynamic_function, pascal_to_snake_case, is_fixture, get_fixture_args, \
-    define_fixture
+from pytest_fixture_forms.utils import (
+    create_dynamic_function,
+    pascal_to_snake_case,
+    is_fixture,
+    get_fixture_args,
+    define_fixture,
+)
 
 
 class FixtureForms:
@@ -136,7 +141,6 @@ class FixtureForms:
                         params=fixture_args.get("params", None),
                     )
 
-
         cls._schedule_fixture_registration(register)
 
     @classmethod
@@ -209,9 +213,7 @@ class FixtureForms:
             # for form in requested_forms:
             #     requested_forms_fixtures.add(cls.get_form_value_fixture_name(form))
             # values_param_name = cls.get_value_fixture_name()
-            instance_fixture_func = create_dynamic_function(
-                ["request", prototype_fixture_name], impl
-            )
+            instance_fixture_func = create_dynamic_function(["request", prototype_fixture_name], impl)
 
             define_fixture(instance_fixture_name, instance_fixture_func)
 
@@ -229,10 +231,10 @@ class FixtureForms:
         return f"{self.__name__}.{self.form}={self.value}"
 
     def __init__(
-            self,
-            request: pytest.FixtureRequest,
-            *,
-            form: str = None,
+        self,
+        request: pytest.FixtureRequest,
+        *,
+        form: str = None,
     ):
         self.request: pytest.FixtureRequest = request
         self.form: str = form

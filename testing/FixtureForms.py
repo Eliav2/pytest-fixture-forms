@@ -1,6 +1,7 @@
 from pytest_fixture_forms import FixtureForms
 import pytest
 
+
 class KeyId(FixtureForms):
     """
     This class dynamically defines the following fixtures:

@@ -26,3 +26,6 @@ Homepage = "https://github.com/Eliav2/pytest-fixture-forms"
 fixture_forms = "src.pytest_fixture_forms.plugin"
 [project.optional-dependencies]
 dev = ["black[d]"]
+
+[tool.ruff]
+line-length = 120

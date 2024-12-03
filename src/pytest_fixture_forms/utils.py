@@ -198,6 +198,7 @@ def pascal_to_snake_case_simple(s):
     # Convert PascalCase to snake_case using regular expressions
     return re.sub(r"(?<!^)(?=[A-Z])", "_", s).lower()
 
+
 def pascal_to_snake_case(s):
     """Version that properly handles acronyms by looking ahead
     to detect consecutive uppercase letters,
@@ -206,6 +207,7 @@ def pascal_to_snake_case(s):
     return re.sub(
         r"(?<!^)(?<!_)(?=[A-Z][a-z])|(?<!^)(?<!_)(?=[A-Z][0-9])|(?<!^)(?=[A-Z])(?=[A-Z][a-z])", "_", s
     ).lower()
+
 
 def snake_to_pascal_case(s):
     return "".join(word.capitalize() for word in s.split("_"))

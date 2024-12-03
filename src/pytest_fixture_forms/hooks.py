@@ -160,7 +160,7 @@ def pytest_pycollect_makeitem(collector, name, obj):
                 mark = next((mark for mark in test_marks if mark.args and mark.args[0] == _name), None)
                 kwargs = mark.kwargs if mark else {}
                 # parameterize each node with the relevant values
-                test_func = pytest.mark.parametrize(_name,parameterized_vals[_name],**kwargs)(test_func)
+                test_func = pytest.mark.parametrize(_name, parameterized_vals[_name], **kwargs)(test_func)
 
             methods[f"test_{test_name}"] = test_func
 
@@ -179,9 +179,8 @@ def pytest_pycollect_makeitem(collector, name, obj):
             else (
                 collector.module
                 if isinstance(collector, Module)
-                else
                 # should not happen(if it does, its a bug)
-                NotImplementedError("Unsupported collector type")
+                else NotImplementedError("Unsupported collector type")
             )
         )
         # Add the class to the module/class
