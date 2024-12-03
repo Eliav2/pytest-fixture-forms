@@ -51,6 +51,7 @@ def test_my_form(my_form: MyForm):
     assert my_form.value in ["something", "something else", "fixture value", "param1", "param2"]
     print(my_form)
 
+# test_my_form is roughly equivalent to the following (without the parameterization):
 
 class TestForms:
     def test_my_form_form1(self, my_form_form1):
