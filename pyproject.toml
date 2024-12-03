@@ -23,7 +23,7 @@ classifiers = [
 Homepage = "https://github.com/Eliav2/pytest-fixture-forms"
 
 [project.entry-points.pytest11]
-fixture_forms = "src.pytest_fixture_forms.plugin"
+fixture_forms = "pytest_fixture_forms.plugin"
 [project.optional-dependencies]
 dev = ["black[d]"]
 
