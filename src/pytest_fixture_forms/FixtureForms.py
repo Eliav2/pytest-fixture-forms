@@ -127,28 +127,13 @@ class FixtureForms:
                             required_params=_must_params,
                         )
 
-                    _params = fixture_args.get("params", None)
-                    if _params is None:
-                        params = [
-                            # this marks any test that uses that fixture
-                            pytest.param(
-                                "_not_relevant123",
-                                marks=[
-                                    # this mark is the same as badatz v1 normally generated, so leaving it here for backward compatibility
-                                    getattr(pytest.mark, cls.__name__)(form),
-                                ],
-                                id="",
-                            ),
-                        ]
-                    else:
-                        raise NotImplementedError("parametrized fixtures under FixtureForms are not supported yet")
                     final_value_func = make_wrapper(form)
                     # fixture for the method value
                     define_fixture(
                         fixture_name,
                         final_value_func,
                         fixture_args.get("scope", "function"),
-                        params=params,
+                        params=fixture_args.get("params", None),
                     )
 
 
@@ -224,22 +209,11 @@ class FixtureForms:
             # for form in requested_forms:
             #     requested_forms_fixtures.add(cls.get_form_value_fixture_name(form))
             # values_param_name = cls.get_value_fixture_name()
-            instance_fixture_func = create_dynamic_function(["request", prototype_fixture_name], impl)
-
-            define_fixture(
-                instance_fixture_name,
-                instance_fixture_func,
-                params=[
-                    # this marks any test that uses that fixture with 'FixtureForms:<fixture_name>'
-                    pytest.param(
-                        "_not_relevant",
-                        marks=[
-                            getattr(pytest.mark, "FixtureForms")(cls.__name__),
-                        ],
-                        id="",
-                    ),
-                ],
+            instance_fixture_func = create_dynamic_function(
+                ["request", prototype_fixture_name], impl
             )
+
+            define_fixture(instance_fixture_name, instance_fixture_func)
 
         cls._schedule_fixture_registration(register_instance_fixture)
 
