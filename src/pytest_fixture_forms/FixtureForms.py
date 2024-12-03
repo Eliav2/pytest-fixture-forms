@@ -228,7 +228,7 @@ class FixtureForms:
         super().__init_subclass__(**kwargs)
 
     def __repr__(self):
-        return f"{self.__name__}.{self.form}={self.value}"
+        return f"{self.__class__.__name__}.{self.form}={self.value}"
 
     def __init__(
         self,

@@ -121,8 +121,7 @@ def pytest_pycollect_makeitem(collector, name, obj):
             for cls, form in params:
                 # override original_parameterized_params_vals with the values relevant to this node (no need to request all forms)
                 form_fixture_name = cls.get_form_fixture_name()
-                if form_fixture_name in parameterized_vals:
-                    parameterized_vals[form_fixture_name] = [form]
+                parameterized_vals[form_fixture_name] = [form]
                 # only relevant owners should be requested
                 owners_fixtures = [cls.get_form_owner_fixture_name(form) for form in cls.forms()]
                 current_owner_fixture = cls.get_form_owner_fixture_name(form)
@@ -205,6 +204,6 @@ def pytest_pycollect_makemodule(module_path, parent):
     return mod
 
 
-# def pytest_make_parametrize_id(config, val, argname):
-#     """Hook for generating test IDs for parametrized tests"""
-#     return f"{argname}:{val}"
+def pytest_make_parametrize_id(config, val, argname):
+    """Hook for generating test IDs for parametrized tests"""
+    return f"{argname}:{val}"
