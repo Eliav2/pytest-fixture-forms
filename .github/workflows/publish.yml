@@ -2,7 +2,10 @@ name: Publish to PyPI
 
 on:
   release:
-    types: [created]  # Trigger on new release creation
+#    types: [created]  # Trigger on new release creation
+    branches:
+      - main
+
 
 jobs:
   publish:
