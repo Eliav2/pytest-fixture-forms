@@ -56,62 +56,6 @@ def pytest_collection(session):
     for cls in FixtureForms.__subclasses__():
         special_params_fixtures[cls.get_instance_fixture_name()] = cls
     pytest_internals["special_params_fixtures"] = special_params_fixtures
-    #
-    #     for fixture_name in requested_fixtures:
-    #         if fixture_name in special_params_fixtures:
-    #             cls = special_params_fixtures[fixture_name]
-    #             form_fixture_name = cls.get_forms_fixture_name()
-    #             form_fixture = fixture_registry[form_fixture_name]
-    #             default_forms = form_fixture["params"]
-    #
-    #             # For each test item, check if it needs this fixture
-    #             for test_item in test_items:
-    #                 runtime_forms = (
-    #                     _get_parametrized_values_for_fixture([test_item], form_fixture_name) or default_forms
-    #                 )
-    #
-    #                 if runtime_forms:  # This test uses this fixture
-    #                     for form in runtime_forms:
-    #                         param_fixture_name = cls.get_form_fixture_name(form)
-    #
-    #                         # Add the fixture directly to this test's fixturenames
-    #                         if not hasattr(test_item, "fixturenames"):
-    #                             test_item.fixturenames = []
-    #                         if param_fixture_name not in test_item.fixturenames:
-    #                             test_item.fixturenames.append(param_fixture_name)
-
-    # for fixture_name in requested_fixtures:
-    #     if fixture_name in special_params_fixtures:
-    #         cls = special_params_fixtures[fixture_name]
-    #         form_fixture_name = cls.get_forms_fixture_name()
-    #         form_fixture = fixture_registry[form_fixture_name]  # get defaults values for the form fixture
-    #         default_forms = form_fixture["params"]
-    #         runtime_forms = _get_parametrized_values_for_fixture(test_items, form_fixture_name)
-    #         final_wanted_forms = runtime_forms or default_forms
-    #         for form in final_wanted_forms:
-    #             param_fixture_name = cls.get_form_fixture_name(form)
-    #             fm = session._fixturemanager
-    #             fm._nodeid_autousenames[""].extend([param_fixture_name])
-
-    # for cls in FixtureForms.__subclasses__():
-    #     # we iterate over each class method of a class that inherent from FixtureForms,
-    #     # and we know that any fixture specified by <class_name>_form is going to require a fixture,
-    #     # so we should declare this fixture as being used during the collection phase
-    #     class_form_fixture_name = cls.get_forms_fixture_name()
-    #     if class_form_fixture_name in fixture_registry:
-    #         class_form_fixture = fixture_registry[class_form_fixture_name]
-    #         default_forms = class_form_fixture["params"]
-    #         default_forms = []
-    #         for form in default_forms:
-    #             param_fixture_name = cls.get_method_fixture_name(form)
-    #             fm = session._fixturemanager
-    #             fm._nodeid_autousenames[""].extend([param_fixture_name])
-    # pass
-    # register for use  fixtures we know we want to use
-
-    # session = config.pluginmanager.get_plugin("session")
-    # existing = session.config.getini("usefixtures")
-    # session.config.inicfg["usefixtures"] = existing + ["key_instance_10"]
 
 
 def pytest_pycollect_makeitem(collector, name, obj):
@@ -176,7 +120,9 @@ def pytest_pycollect_makeitem(collector, name, obj):
 
             for cls, form in params:
                 # override original_parameterized_params_vals with the values relevant to this node (no need to request all forms)
-                parameterized_vals[cls.get_form_fixture_name()] = [form]
+                form_fixture_name = cls.get_form_fixture_name()
+                if form_fixture_name in parameterized_vals:
+                    parameterized_vals[form_fixture_name] = [form]
                 # only relevant owners should be requested
                 owners_fixtures = [cls.get_form_owner_fixture_name(form) for form in cls.forms()]
                 current_owner_fixture = cls.get_form_owner_fixture_name(form)
@@ -210,17 +156,12 @@ def pytest_pycollect_makeitem(collector, name, obj):
 
             test_func = create_test_function(args_to_remove)
 
-            parameterization = {}
             for _name, param_config in parameterized_vals.items():
                 mark = next((mark for mark in test_marks if mark.args and mark.args[0] == _name), None)
                 kwargs = mark.kwargs if mark else {}
-                parameterization[_name] = {
-                    "params": parameterized_vals[_name],
-                    **kwargs,
-                }
+                # parameterize each node with the relevant values
+                test_func = pytest.mark.parametrize(_name,parameterized_vals[_name],**kwargs)(test_func)
 
-            # parameterize each node with the relevant values
-            test_func = pytest.mark.parameterize(parameterization)(test_func)
             methods[f"test_{test_name}"] = test_func
 
         # Create new class named after the original test

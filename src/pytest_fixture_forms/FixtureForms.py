@@ -15,9 +15,8 @@ class FixtureForms:
     so for example,
     >>>from pytest_fixture_forms import FixtureForms
     >>>class MyClass(FixtureForms):
-    >>>     @staticmethod
     >>>     @pytest.fixture
-    >>>     def arn():
+    >>>     def arn(self):
     >>>         return 1
     defiines a fixtures named:
         "my_class" - returns the value, e.g, 1 when the form is "my_class_form")
