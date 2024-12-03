@@ -2,25 +2,27 @@ from pytest_fixture_forms import FixtureForms
 import pytest
 
 
-class UserCredentials(FixtureForms):
+class KeyId(FixtureForms):
     @pytest.fixture
-    def valid_user(self):
-        return {"username": "john_doe", "password": "secure123"}
-
-    @pytest.fixture
-    def invalid_password(self):
-        return {"username": "john_doe", "password": "wrong"}
+    def arn(self):
+        # self is an instance of KeyId with form="arn"
+        return f"arn:aws:{self.region}"
 
     @pytest.fixture
-    def missing_username(self):
-        return {"username": "", "password": "secure123"}
+    def id(self):
+        return "123"
+
+@pytest.fixture(autouse=True)
+def region(key_id_prototype):
+    # We can access the form before the value is computed
+    if key_id_prototype.form == "arn":
+        key_id_prototype.region = "us-east-1"
 
 
-def test_login(user_credentials):
-    # This test will run for each form defined in UserCredentials
-    response = login_service.authenticate(**user_credentials.value)
-
-    if user_credentials.form == "valid_user":
-        assert response.status_code == 200
+def test_key_id(key_id):
+    # key_id has both form and value set
+    assert key_id.form in ["arn", "id"]
+    if key_id.form == "arn":
+        assert key_id.value.startswith("arn:aws:")
     else:
-        assert response.status_code == 401
+        assert key_id.value == "123"

@@ -24,8 +24,12 @@ class FixtureForms:
     >>>     def arn(self):
     >>>         return 1
     defiines a fixtures named:
-        "my_class" - returns the value, e.g, 1 when the form is "my_class_form")
+        "my_class" - returns instance of MyClass class
         "my_class_form" - returns the current form name, e.g, "arn"
+    each fixture method in the class is considered a form, and the value of the form is the return value of the method. would generate the following fixtures:
+        "my_class_<form>" - returns the value of the form, e.g, 1
+
+
     """
 
     @classmethod
@@ -43,7 +47,7 @@ class FixtureForms:
 
     @classmethod
     def get_initial_prototype_fixture_name(cls):
-        """very initial prototype, with form onlu"""
+        """very initial prototype, with form only"""
         return f"{pascal_to_snake_case(cls.__name__)}_initial_prototype"
 
     @classmethod

@@ -167,35 +167,87 @@ The plugin uses pytest's collection hooks to:
 4. Consider using parametrization to control test combinations
 5. Document expected behavior for each form
 
-## Common Patterns
+## Understanding Instance Fixtures Lifecycle
 
-### API Testing
+When you create a class that inherits from `FixtureForms`, the plugin generates several instance-related fixtures that work together to provide a robust testing framework. Let's understand these fixtures and their relationships using an example:
 
 ```python
-class Endpoint(FixtureForms):
+class KeyId(FixtureForms):
     @pytest.fixture
-    def valid_path(self):
-        return "/api/v1/resource"
-
+    def arn(self):
+        return "arn:aws:123"
+    
     @pytest.fixture
-    def invalid_path(self):
-        return "/api/v1/nonexistent"
-
-
-class Payload(FixtureForms):
-    @pytest.fixture
-    def valid_data(self):
-        return {"key": "value"}
-
-    @pytest.fixture
-    def invalid_data(self):
-        return {"invalid": "data"}
-
-
-def test_api(endpoint, payload):
-    response = client.post(endpoint.value, json=payload.value)
+    def id(self):
+        return "123"
 ```
 
+### Instance Fixture Hierarchy
+
+For the `KeyId` class above, the following instance fixtures are created:
+
+1. `key_id_initial_prototype`
+   - The most basic instance fixture
+   - Not parameterized
+   - Neither `form` nor `value` are set
+   - Used internally to create the base instance that will be passed to form methods
+   - Useful when form methods or dependent fixtures need early access to the instance
+
+2. `key_id_prototype`
+   - Built from `key_id_initial_prototype`
+   - Parameterized with forms ("arn", "id")
+   - Has `form` set but no `value`
+   - Used when you need access to the instance and form name before the value is computed
+   - Helpful for fixtures that depend on the form but not the value
+
+3. `key_id`
+   - The final, fully initialized instance
+   - Built from `key_id_prototype`
+   - Has both `form` and `value` set
+   - The value is computed by calling the corresponding form method
+   - This is typically what you'll use in your tests
+
+### Example: Working with Instance Fixtures
+
+Here's how you might use different instance fixtures:
+
+```python
+class KeyId(FixtureForms):
+    @pytest.fixture
+    def arn(self):
+        # self is an instance of KeyId with form="arn"
+        return f"arn:aws:{self.region}"
+    
+    @pytest.fixture
+    def id(self):
+        return "123"
+
+@pytest.fixture
+def region(key_id_prototype):
+    # We can access the form before the value is computed
+    if key_id_prototype.form == "arn":
+        return "us-east-1"
+    return "default-region"
+
+def test_key_id(key_id):
+    # key_id has both form and value set
+    assert key_id.form in ["arn", "id"]
+    if key_id.form == "arn":
+        assert key_id.value.startswith("arn:aws:")
+    else:
+        assert key_id.value == "123"
+```
+
+### Instance Fixture Flow
+
+The lifecycle of a `FixtureForms` instance follows this sequence:
+
+1. `key_id_initial_prototype` creates the base instance
+2. `key_id_prototype` sets the form based on parametrization
+3. Form method is called with the prototype instance as `self`
+4. `key_id` receives the computed value and becomes the final instance
+
+This design allows for complex dependencies and interactions between fixtures while maintaining clarity and preventing circular dependencies.
 ## Contributing
 
 Contributions are welcome! This is a new project and there might be bugs or missing features. If you have any
