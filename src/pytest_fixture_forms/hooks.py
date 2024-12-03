@@ -1,0 +1,270 @@
+"""
+hooks in this file are used to:
+    - dynamically register fixtures based on classes that inherent from FixtureForms (see register() call in pytest_collection)
+    - dynamically generate test nodes per each combination of parameters for tests that uses fixtures generated from FixtureForms inheritance (see pytest_pycollect_makeitem)
+      - each test node is synthetically created with correct required arguments(which are fixtures) that suit the combination of parameters(see create_dynamic_function)
+"""
+
+import inspect
+from itertools import product
+
+from _pytest.python import Class, Package, Module
+import pytest
+from pytest_fixture_forms.FixtureForms import FixtureForms
+from pytest_fixture_forms.CustomModule import CustomModule
+from pytest_fixture_forms.runtime import pytest_internals, fixture_registry
+from pytest_fixture_forms.utils import (
+    _get_test_functions,
+    _get_direct_requested_fixtures,
+    _get_dependent_fixtures,
+    get_original_params_from_callspecs,
+    create_dynamic_function,
+)
+
+
+def pytest_collection(session):
+    """Called during collection before test items are created"""
+    pytest_internals["fixturemanager"] = session._fixturemanager
+    if not hasattr(session, "_notfound"):
+        session._notfound = []
+    test_items = _get_test_functions(session)
+    pytest_internals["_original_test_items"] = (
+        test_items  # the test items that originally collected (they would be replaced by the dynamic tests)
+    )
+    for cls in FixtureForms.__subclasses__():
+        if hasattr(cls, "_pending_fixture_registrations"):
+            for register in cls._pending_fixture_registrations:
+                register(session, **{"test_items": test_items})
+    pytest_internals["session"] = session
+    fixturedefs = session._fixturemanager._arg2fixturedefs
+
+    for name, defs in fixturedefs.items():
+        if defs:  # Take the last fixturedef as it overrides previous ones
+            fixdef = defs[-1]
+            fixture_registry[name] = {"ids": fixdef.ids, "scope": fixdef.scope, "params": fixdef.params}
+
+    direct_requested_fixtures = _get_direct_requested_fixtures([test_item._obj for test_item in test_items])
+    requested_fixtures = _get_dependent_fixtures(direct_requested_fixtures, fixturedefs)
+    pytest_internals["test_items"] = test_items
+    pytest_internals["requested_fixtures"] = requested_fixtures
+    pytest_internals["fixturedefs"] = fixturedefs
+
+    # these fixtures are dynamically generated via classes that inherent from FixtureForms
+    # when such a class is defined it automatically generates a values and form fixture, and a fixture for each method of the class.
+    # so if we have a class named 'KeyId', we will have a fixture named 'key_id_form' (that returns each method name), 'key_id' (for final values), and specific fixtures for each method(for example 'arn' method for example, an  '_KeyId_arn' fixture)
+    special_params_fixtures = {}
+    for cls in FixtureForms.__subclasses__():
+        special_params_fixtures[cls.get_instance_fixture_name()] = cls
+    pytest_internals["special_params_fixtures"] = special_params_fixtures
+    #
+    #     for fixture_name in requested_fixtures:
+    #         if fixture_name in special_params_fixtures:
+    #             cls = special_params_fixtures[fixture_name]
+    #             form_fixture_name = cls.get_forms_fixture_name()
+    #             form_fixture = fixture_registry[form_fixture_name]
+    #             default_forms = form_fixture["params"]
+    #
+    #             # For each test item, check if it needs this fixture
+    #             for test_item in test_items:
+    #                 runtime_forms = (
+    #                     _get_parametrized_values_for_fixture([test_item], form_fixture_name) or default_forms
+    #                 )
+    #
+    #                 if runtime_forms:  # This test uses this fixture
+    #                     for form in runtime_forms:
+    #                         param_fixture_name = cls.get_form_fixture_name(form)
+    #
+    #                         # Add the fixture directly to this test's fixturenames
+    #                         if not hasattr(test_item, "fixturenames"):
+    #                             test_item.fixturenames = []
+    #                         if param_fixture_name not in test_item.fixturenames:
+    #                             test_item.fixturenames.append(param_fixture_name)
+
+    # for fixture_name in requested_fixtures:
+    #     if fixture_name in special_params_fixtures:
+    #         cls = special_params_fixtures[fixture_name]
+    #         form_fixture_name = cls.get_forms_fixture_name()
+    #         form_fixture = fixture_registry[form_fixture_name]  # get defaults values for the form fixture
+    #         default_forms = form_fixture["params"]
+    #         runtime_forms = _get_parametrized_values_for_fixture(test_items, form_fixture_name)
+    #         final_wanted_forms = runtime_forms or default_forms
+    #         for form in final_wanted_forms:
+    #             param_fixture_name = cls.get_form_fixture_name(form)
+    #             fm = session._fixturemanager
+    #             fm._nodeid_autousenames[""].extend([param_fixture_name])
+
+    # for cls in FixtureForms.__subclasses__():
+    #     # we iterate over each class method of a class that inherent from FixtureForms,
+    #     # and we know that any fixture specified by <class_name>_form is going to require a fixture,
+    #     # so we should declare this fixture as being used during the collection phase
+    #     class_form_fixture_name = cls.get_forms_fixture_name()
+    #     if class_form_fixture_name in fixture_registry:
+    #         class_form_fixture = fixture_registry[class_form_fixture_name]
+    #         default_forms = class_form_fixture["params"]
+    #         default_forms = []
+    #         for form in default_forms:
+    #             param_fixture_name = cls.get_method_fixture_name(form)
+    #             fm = session._fixturemanager
+    #             fm._nodeid_autousenames[""].extend([param_fixture_name])
+    # pass
+    # register for use  fixtures we know we want to use
+
+    # session = config.pluginmanager.get_plugin("session")
+    # existing = session.config.getini("usefixtures")
+    # session.config.inicfg["usefixtures"] = existing + ["key_instance_10"]
+
+
+def pytest_pycollect_makeitem(collector, name, obj):
+    # print(
+    #     f"Called with: collector={collector.__class__.__name__}, name={name}, obj={obj.__class__.__name__ if hasattr(obj, '__class__') else type(obj)}"
+    # )
+
+    # if isinstance(collector, Class) and issubclass(collector.cls, TestBaseCaseV2):
+    if collector.istestfunction(obj, name):
+        if "fixturedefs" not in pytest_internals:
+            return None
+        # store the original test for later use
+        # _original_test = getattr(collector.cls, name)
+        _original_test = obj
+        _original_test_items = [
+            test_item for test_item in pytest_internals["test_items"] if test_item.originalname == name
+        ]
+        if len(_original_test_items) == 0:
+            return None
+        first_test_item = _original_test_items[0]
+        test_marks = first_test_item.own_markers
+        # recreation of parameters that were originally passed to the test (closely)
+        original_parameterized_params_vals = get_original_params_from_callspecs(
+            [test_item.callspec for test_item in _original_test_items if hasattr(test_item, "callspec")]
+        )
+
+        fixturedefs = pytest_internals["fixturedefs"]
+        special_params_instances_fixtures = pytest_internals["special_params_fixtures"]
+        direct_requested_fixtures = _get_direct_requested_fixtures([obj])
+        requested_fixtures = _get_dependent_fixtures(direct_requested_fixtures, fixturedefs)
+        params2formsMap = {}
+        for fixture_name in requested_fixtures:
+            if fixture_name in special_params_instances_fixtures:
+                cls = special_params_instances_fixtures[fixture_name]
+                form_fixture_name = cls.get_form_fixture_name()
+                default_params = fixturedefs[form_fixture_name][-1].params
+                final_wanted_forms = original_parameterized_params_vals.get(form_fixture_name, default_params)
+                params2formsMap[cls] = final_wanted_forms
+        if not params2formsMap:
+            # no special params fixtures were requested
+            return None
+        class_names = list(params2formsMap.keys())
+        combinations = product(*params2formsMap.values())
+        labeled_combinations = [tuple(zip(class_names, combo)) for combo in combinations]
+
+        methods = {}
+        original_args = list(inspect.signature(_original_test).parameters.keys())
+
+        for params in labeled_combinations:
+            required_fixtures = set()
+            parameterized_vals = original_parameterized_params_vals.copy()
+            # add args from original test
+            for cls, form in params:
+                # the forms fixture is required for each node
+                required_fixtures.add(cls.get_form_fixture_name())
+                # require the correct form fixture for each node
+                required_fixtures.add(cls.get_form_value_fixture_name(form))
+
+            test_name = "_".join([f"{cls.__name__}_{form}" for cls, form in params])
+
+            args_to_remove = set()
+
+            for cls, form in params:
+                # override original_parameterized_params_vals with the values relevant to this node (no need to request all forms)
+                parameterized_vals[cls.get_form_fixture_name()] = [form]
+                # only relevant owners should be requested
+                owners_fixtures = [cls.get_form_owner_fixture_name(form) for form in cls.forms()]
+                current_owner_fixture = cls.get_form_owner_fixture_name(form)
+                for p in parameterized_vals.copy():
+                    if p in owners_fixtures and p != current_owner_fixture:
+                        del parameterized_vals[p]
+                for p in requested_fixtures:
+                    if p in owners_fixtures and p != current_owner_fixture:
+                        args_to_remove.add(p)
+
+            def create_test_function(args_to_remove):
+                def impl(args: dict, required_params):
+                    # fill irrelevant args with None
+                    for arg in args_to_remove:
+                        args[arg] = None
+                    if isinstance(collector, Module):
+                        # self does not exist in the original test function(but was injected by pytest, we remove it before calling the original test)
+                        del args["self"]
+                    _original_test(**args)
+
+                final_args = [arg for arg in original_args if arg not in args_to_remove]
+                if isinstance(collector, Module):
+                    # in case it's a function defined in a module, we need to add the self argument, because previously it was normal function, now it's a method under a class so pytest is going to inject the self argument as the first argument
+                    final_args = ["self"] + final_args
+                _required_fixtures = [fixture for fixture in required_fixtures if fixture not in args_to_remove]
+                return create_dynamic_function(
+                    final_args,
+                    impl,
+                    required_params=list(required_fixtures),
+                )
+
+            test_func = create_test_function(args_to_remove)
+
+            parameterization = {}
+            for _name, param_config in parameterized_vals.items():
+                mark = next((mark for mark in test_marks if mark.args and mark.args[0] == _name), None)
+                kwargs = mark.kwargs if mark else {}
+                parameterization[_name] = {
+                    "params": parameterized_vals[_name],
+                    **kwargs,
+                }
+
+            # parameterize each node with the relevant values
+            test_func = pytest.mark.parameterize(parameterization)(test_func)
+            methods[f"test_{test_name}"] = test_func
+
+        # Create new class named after the original test
+        class_name = name
+        DynamicTestClass = type(
+            class_name,
+            (),
+            methods,
+        )
+        # for modules, we replace the original test func with the new class,
+        # for test classes we replace the method with the new class
+        collector_node = (
+            collector.cls
+            if isinstance(collector, Class)
+            else (
+                collector.module
+                if isinstance(collector, Module)
+                else
+                # should not happen(if it does, its a bug)
+                NotImplementedError("Unsupported collector type")
+            )
+        )
+        # Add the class to the module/class
+        setattr(collector_node, name, DynamicTestClass)
+
+        # Create a Class collector for our new class
+        new_class_collector = Class.from_parent(
+            parent=collector,
+            name=DynamicTestClass.__name__,
+            obj=DynamicTestClass,
+        )
+
+        # return list(new_class_collector.collect())
+        return new_class_collector
+
+
+def pytest_pycollect_makemodule(module_path, parent):
+    if module_path.name == "__init__.py":
+        pkg: Package = Package.from_parent(parent, path=module_path)
+        return pkg
+    mod: CustomModule = CustomModule.from_parent(parent, path=module_path)
+    return mod
+
+
+# def pytest_make_parametrize_id(config, val, argname):
+#     """Hook for generating test IDs for parametrized tests"""
+#     return f"{argname}:{val}"
