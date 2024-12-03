@@ -1,9 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta
+
 [project]
-name = "pytest-fixture-group"
+name = "pytest-fixture-forms"
 version = "0.1.0"
-description = "Add your description here"
+description = "A pytest plugin for creating fixtures that holds different forms between tests."
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "pytest>=8.3.4",
+authors = [
+    {name = "eliav2", email = "louski.a@gmail.com"}
 ]
+requires-python = ">=3.10"
+dependencies = [
+    "pytest>=7.0.0",
+]
+classifiers = [
+   "Framework :: Pytest",
+   "Programming Language :: Python :: 3.10",
+   "Programming Language :: Python :: 3.11",
+   "Programming Language :: Python :: 3.12"
+]
+
+[project.urls]
+Homepage = "https://github.com/Eliav2/pytest-fixture-forms"
+
+[project.entry-points.pytest11]
+badatz = "fixture_forms"
+[project.optional-dependencies]
+dev = ["black[d]"]
