@@ -80,7 +80,6 @@ def pytest_collection(session:Session):
     test_items = yield
     # FixtureForms._register_pending_fixtures(session)
 
-    after = FixtureForms.__subclasses__()
     return test_items
     # pytest_internals["test_items"] = _get_test_functions(session)
     # pytest_internals["fixturemanager"] = session._fixturemanager

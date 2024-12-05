@@ -1,14 +1,13 @@
 import inspect
 import re
+import warnings
 from collections import defaultdict
 from inspect import Parameter, Signature
 from typing import Iterable, Callable, List, Dict, Any
 
+import pytest
 from _pytest.fixtures import FixtureDef, FixtureManager
-from _pytest.python import Function
-from _pytest.python import CallSpec2
-
-from pytest_fixture_forms.runtime import pytest_internals
+from _pytest.python import Function, CallSpec2
 
 
 def create_dynamic_function(original_params: list[str | Parameter], func_impl, *, required_params: list[str] = None):
@@ -280,13 +279,19 @@ def get_fixture_args(method):
 
 
 def define_fixture(fixturemanager:FixtureManager,fixture_name:str, func:Callable, scope="function", params=None, ids=None, autouse=False):
-    fixture_def = FixtureDef(
-        fixturemanager=fixturemanager,
-        baseid="",
-        argname=fixture_name,
-        func=func,
-        scope=scope,
-        params=params,
-        ids=ids,
-    )
+    with warnings.catch_warnings():
+        # we're doing some magic here, It's ok to directly call the internal pytest functions if we know what we are doing
+        warnings.filterwarnings("ignore", category=pytest.PytestDeprecationWarning)
+        fixture_def = FixtureDef(
+            fixturemanager=fixturemanager,
+            baseid="",
+            argname=fixture_name,
+            func=func,
+            scope=scope,
+            params=params,
+            ids=ids,
+        )
+
     fixturemanager._arg2fixturedefs[fixture_name] = [fixture_def]
+
+
