@@ -4,7 +4,6 @@ from packaging import version
 PYTEST_VERSION = version.parse(pytest.__version__)
 IS_PYTEST7 = PYTEST_VERSION.major == 7
 IS_PYTEST8 = PYTEST_VERSION.major == 8
-
 def skip_if_not_pytest7(reason="Test only applicable for pytest 7"):
     return pytest.mark.skipif(not IS_PYTEST7, reason=reason)
 
