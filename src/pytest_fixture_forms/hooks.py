@@ -14,13 +14,12 @@ from _pytest.main import Session
 
 from pytest_fixture_forms.FixtureForms import FixtureForms
 from pytest_fixture_forms.CustomModule import CustomModule
-from pytest_fixture_forms.runtime import pytest_internals, fixture_registry
 from pytest_fixture_forms.utils import (
     _get_direct_requested_fixtures,
     _get_dependent_fixtures,
     get_original_params_from_callspecs,
-    create_dynamic_function, _get_test_functions,
-)
+    create_dynamic_function, )
+
 
 # special_params_fixtures = {}
 
@@ -57,6 +56,11 @@ from pytest_fixture_forms.utils import (
 #     # pytest_internals["special_params_fixtures"] = special_params_fixtures
 
 
+# def pytest_configure(config):
+#     """Pytest hook to discover and register fixtures before collection."""
+#     registry = FixtureFormsRegistry.get_instance()
+#     registry.discover_subclasses()
+
 @pytest.hookimpl(wrapper=True)
 def pytest_collection(session:Session):
     # for cls in FixtureForms.__subclasses__():
@@ -64,9 +68,15 @@ def pytest_collection(session:Session):
     #     if hasattr(cls, "_pending_fixture_registrations"):
     #         for register in cls._pending_fixture_registrations:
     #             register(session, **{})
+
+    # registry = FixtureFormsRegistry.get_instance()
+    # registry.discover_subclasses_from_session(session)
+    # registry.execute_registrations(session)
+
     FixtureForms._register_pending_fixtures(session)
+
     # return (yield)
-    before=FixtureForms.__subclasses__()
+    # before=FixtureForms.__subclasses__()
     test_items = yield
     # FixtureForms._register_pending_fixtures(session)
 
@@ -102,6 +112,13 @@ def pytest_collection(session:Session):
     # pytest_internals["special_params_fixtures"] = special_params_fixtures
 
     # return test_items
+
+# @pytest.hookimpl(tryfirst=True)
+# def pytest_import_module(path, mod):
+#     pass
+# @pytest.hookimpl(tryfirst=True)
+# def pytest_plugin_registered(plugin):
+#     pass
 
 @pytest.hookimpl(wrapper=True)
 def pytest_pycollect_makeitem(collector, name, obj):
