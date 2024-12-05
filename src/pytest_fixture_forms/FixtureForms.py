@@ -3,7 +3,6 @@ from typing import Any
 
 import pytest
 
-from pytest_fixture_forms.runtime import pytest_internals
 from pytest_fixture_forms.utils import (
     create_dynamic_function,
     pascal_to_snake_case,
@@ -11,6 +10,7 @@ from pytest_fixture_forms.utils import (
     get_fixture_args,
     define_fixture,
 )
+from _pytest.main import Session
 
 
 class FixtureForms:
@@ -31,6 +31,9 @@ class FixtureForms:
 
 
     """
+
+    # This is a class variable that holds the mapping between the fixture name and the subclass that defines it
+    special_params_fixtures = {}
 
     @classmethod
     def forms(cls) -> list[str]:
@@ -79,14 +82,24 @@ class FixtureForms:
         FixtureForms._pending_fixture_registrations.append(callback)
 
     @classmethod
+    def _register_pending_fixtures(cls, session):
+        for subcls in FixtureForms.__subclasses__():
+            cls.special_params_fixtures[subcls.get_instance_fixture_name()] = subcls
+            if hasattr(subcls, "_pending_fixture_registrations"):
+                for register in subcls._pending_fixture_registrations:
+                    register(session, **{})
+
+    @classmethod
     def __register_methods_as_fixtures(cls):
         """register all methods as fixtures, and also defines owner fixture for each form"""
 
-        def register(session, **kwargs):
+        def register(session:Session, **kwargs):
+            fixturemanager = session._fixturemanager
+            fixturedefs = fixturemanager._arg2fixturedefs
             for form in cls.forms():
                 method = getattr(cls, form)
                 fixture_name = cls.get_form_value_fixture_name(form)
-                if fixture_name not in pytest_internals["fixturemanager"]._arg2fixturedefs:
+                if fixture_name not in fixturedefs:
                     # Unwrap staticmethod if needed (this messes up with tests defined at a class scope)
                     if isinstance(method, staticmethod):
                         func = method.__get__(None, cls)
@@ -139,6 +152,7 @@ class FixtureForms:
                     final_value_func = make_wrapper(form)
                     # fixture for the method value
                     define_fixture(
+                        fixturemanager,
                         fixture_name,
                         final_value_func,
                         fixture_args.get("scope", "function"),
@@ -154,6 +168,7 @@ class FixtureForms:
         form_fixture_name = cls.get_form_fixture_name()
 
         def register_forms_fixture(session, **kwargs):
+            fixturemanager = session._fixturemanager
             methods_names = [
                 name for name, method in cls.__dict__.items() if callable(method) and not name.startswith("__")
             ]
@@ -161,7 +176,7 @@ class FixtureForms:
             def forms_fixture(request):
                 return request.param
 
-            define_fixture(form_fixture_name, forms_fixture, params=methods_names)
+            define_fixture(fixturemanager,form_fixture_name, forms_fixture, params=methods_names)
 
         cls._schedule_fixture_registration(register_forms_fixture)
 
@@ -170,6 +185,7 @@ class FixtureForms:
         """register special for returning the instance of the class"""
 
         def register_instance_fixture(session, **kwargs):
+            fixturemanager = session._fixturemanager
             initial_prototype_fixture_name = cls.get_initial_prototype_fixture_name()
 
             # initial fixture to create the instance, does not depend on parameterized fixtures such forms fixture
@@ -179,7 +195,7 @@ class FixtureForms:
                 return cls(request)
 
             initial_proto_fixture_func = create_dynamic_function(["request"], impl_initial_proto)
-            define_fixture(initial_prototype_fixture_name, initial_proto_fixture_func)
+            define_fixture(fixturemanager,initial_prototype_fixture_name, initial_proto_fixture_func)
 
             prototype_fixture_name = cls.get_prototype_fixture_name()
             forms_fixture_name = cls.get_form_fixture_name()
@@ -196,7 +212,7 @@ class FixtureForms:
                 [initial_prototype_fixture_name, forms_fixture_name], impl_proto
             )
 
-            define_fixture(prototype_fixture_name, proto_fixture_func)
+            define_fixture(fixturemanager,prototype_fixture_name, proto_fixture_func)
 
             def impl(args: dict):
                 request = args["request"]
@@ -219,7 +235,7 @@ class FixtureForms:
             # values_param_name = cls.get_value_fixture_name()
             instance_fixture_func = create_dynamic_function(["request", prototype_fixture_name], impl)
 
-            define_fixture(instance_fixture_name, instance_fixture_func)
+            define_fixture(fixturemanager,instance_fixture_name, instance_fixture_func)
 
         cls._schedule_fixture_registration(register_instance_fixture)
 

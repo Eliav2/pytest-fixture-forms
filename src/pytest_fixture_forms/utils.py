@@ -4,7 +4,7 @@ from collections import defaultdict
 from inspect import Parameter, Signature
 from typing import Iterable, Callable, List, Dict, Any
 
-from _pytest.fixtures import FixtureDef
+from _pytest.fixtures import FixtureDef, FixtureManager
 from _pytest.python import Function
 from _pytest.python import CallSpec2
 
@@ -279,9 +279,9 @@ def get_fixture_args(method):
     }
 
 
-def define_fixture(fixture_name, func, scope="function", params=None, ids=None, autouse=False):
+def define_fixture(fixturemanager:FixtureManager,fixture_name:str, func:Callable, scope="function", params=None, ids=None, autouse=False):
     fixture_def = FixtureDef(
-        fixturemanager=pytest_internals["fixturemanager"],
+        fixturemanager=fixturemanager,
         baseid="",
         argname=fixture_name,
         func=func,
@@ -289,4 +289,4 @@ def define_fixture(fixture_name, func, scope="function", params=None, ids=None, 
         params=params,
         ids=ids,
     )
-    pytest_internals["fixturemanager"]._arg2fixturedefs[fixture_name] = [fixture_def]
+    fixturemanager._arg2fixturedefs[fixture_name] = [fixture_def]
