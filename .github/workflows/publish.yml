@@ -1,8 +1,8 @@
 name: Publish to PyPI
 
 on:
-  release:
-    types: [ created ]  # Trigger on new release creation
+#  release:
+#    types: [ created ]  # Trigger on new release creation
   push:
     branches:
       - main
