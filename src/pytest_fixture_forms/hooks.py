@@ -10,6 +10,7 @@ from itertools import product
 
 from _pytest.python import Class, Package, Module
 import pytest
+from ordered_set import OrderedSet
 
 from pytest_fixture_forms.FixtureForms import FixtureForms
 from pytest_fixture_forms.CustomModule import CustomModule
@@ -71,17 +72,15 @@ def pytest_pycollect_makeitem(collector, name, obj):
             # no special params fixtures were requested
             return res
         # sort to ensure xdist compatibility
-        sorted_items = sorted(params2formsMap.items(), key=lambda x: x[0].__name__)
-        class_names = [cls for cls, _ in sorted_items]
-        sorted_values = [values for _, values in sorted_items]
-        combinations = product(*sorted_values)
+        class_names = list(params2formsMap.keys())
+        combinations = list(product(*params2formsMap.values()))
         labeled_combinations = [tuple(zip(class_names, combo)) for combo in combinations]
 
         methods = {}
         original_args = list(inspect.signature(_original_test).parameters.keys())
 
         for params in labeled_combinations:
-            required_fixtures = set()
+            required_fixtures = OrderedSet()
             parameterized_vals = original_parameterized_params_vals.copy()
             # add args from original test
             for cls, form in params:
@@ -92,7 +91,7 @@ def pytest_pycollect_makeitem(collector, name, obj):
 
             test_name = "_".join([f"{cls.__name__}_{form}" for cls, form in params])
 
-            args_to_remove = set()
+            args_to_remove = OrderedSet()
 
             # for cls, form in params:
             #     # override original_parameterized_params_vals with the values relevant to this node (no need to request all forms)
@@ -114,12 +113,12 @@ def pytest_pycollect_makeitem(collector, name, obj):
                         del args["self"]
                     _original_test(**args)
 
-                final_args = [arg for arg in original_args if arg not in sorted(args_to_remove)]
+                final_args = [arg for arg in original_args if arg not in args_to_remove]
                 if isinstance(collector, Module):
                     # in case it's a function defined in a module, we need to add the self argument, because previously it was normal function, now it's a method under a class so pytest is going to inject the self argument as the first argument
                     final_args = ["self"] + final_args
                 _required_fixtures = [
-                    fixture for fixture in sorted(required_fixtures) if fixture not in args_to_remove
+                    fixture for fixture in required_fixtures if fixture not in args_to_remove
                 ]
                 return create_dynamic_function(
                     final_args,
