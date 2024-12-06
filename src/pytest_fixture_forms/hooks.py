@@ -62,7 +62,10 @@ def pytest_pycollect_makeitem(collector, name, obj):
             # no special params fixtures were requested
             return res
         class_names = list(params2formsMap.keys())
-        combinations = product(*params2formsMap.values())
+        combinations = list(product(*params2formsMap.values()))
+        if len(combinations) == 1:
+            # no need to create a new class if there is only one combination
+            return res
         labeled_combinations = [tuple(zip(class_names, combo)) for combo in combinations]
 
         methods = {}
@@ -89,6 +92,7 @@ def pytest_pycollect_makeitem(collector, name, obj):
 
             def create_test_function(args_to_remove):
                 def impl(args: dict, required_params):
+                    __tracebackhide__ = True  # This hides this function from tracebacks
                     # fill irrelevant args with None
                     for arg in args_to_remove:
                         args[arg] = None

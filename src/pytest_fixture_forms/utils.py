@@ -54,6 +54,7 @@ def create_dynamic_function(original_params: list[str | Parameter], func_impl, *
 
     # Create the function with proper signature
     def dynamic_func(*args, **kwargs):
+        __tracebackhide__ = True  # This hides this function from tracebacks
         # Bind the arguments to parameter names
         bound_args = Signature(parameters).bind(*args, **kwargs)
         bound_args.apply_defaults()
