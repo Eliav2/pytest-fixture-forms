@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pytest-fixture-forms"
-version = "0.1.1"
+version = "0.2.0"
 description = "A pytest plugin for creating fixtures that holds different forms between tests."
 readme = "README.md"
 authors = [{ name = "eliav2", email = "louski.a@gmail.com" }]
