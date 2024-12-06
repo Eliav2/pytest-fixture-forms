@@ -17,8 +17,20 @@ from pytest_fixture_forms.utils import (
     _get_direct_requested_fixtures,
     _get_dependent_fixtures,
     get_original_params_from_callspecs,
-    create_dynamic_function, )
+    create_dynamic_function,
+)
 
+
+def pytest_addhooks(pluginmanager):
+    """Add hooks to pytest"""
+    from pytest_fixture_forms import newhooks
+
+    pluginmanager.add_hookspecs(newhooks)
+
+# def pytest_configure(config):
+#     config.hook.pytest_fixtureforms_update_test_node_parameterization(
+#         session=None, cls="asd", form="Asd", parameterized_vals={}
+#     )
 
 @pytest.hookimpl(wrapper=True)
 def pytest_pycollect_makeitem(collector, name, obj):
@@ -28,6 +40,7 @@ def pytest_pycollect_makeitem(collector, name, obj):
     # while a pytest istestfunction would also accept a class method
     if collector.istestfunction(obj, name) and inspect.isfunction(obj):
         session = collector.session
+        config = collector.config
         fixturedefs = session._fixturemanager._arg2fixturedefs
         if not fixturedefs:
             return res
@@ -82,10 +95,14 @@ def pytest_pycollect_makeitem(collector, name, obj):
 
             args_to_remove = set()
 
-            for cls, form in params:
-                # override original_parameterized_params_vals with the values relevant to this node (no need to request all forms)
-                form_fixture_name = cls.get_form_fixture_name()
-                parameterized_vals[form_fixture_name] = [form]
+            # for cls, form in params:
+            #     # override original_parameterized_params_vals with the values relevant to this node (no need to request all forms)
+            #     form_fixture_name = cls.get_form_fixture_name()
+            #     parameterized_vals[form_fixture_name] = [form]
+            for param in params:
+                config.hook.pytest_fixtureforms_update_test_node_parameterization(
+                    session=session, cls=param[0], form=param[1], parameterized_vals=parameterized_vals
+                )
 
             def create_test_function(args_to_remove):
                 def impl(args: dict, required_params):
@@ -162,6 +179,10 @@ def pytest_pycollect_makemodule(module_path, parent):
     mod: CustomModule = CustomModule.from_parent(parent, path=module_path)
     return mod
 
+@pytest.hookimpl
+def pytest_fixtureforms_update_test_node_parameterization(session, cls, form , parameterized_vals):
+    form_fixture_name = cls.get_form_fixture_name()
+    parameterized_vals[form_fixture_name] = [form]
 
 # def pytest_make_parametrize_id(config, val, argname):
 #     """Hook for generating test IDs for parametrized tests"""
