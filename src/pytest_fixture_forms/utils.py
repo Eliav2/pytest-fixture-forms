@@ -1,11 +1,16 @@
 import inspect
 import re
+import warnings
 from collections import defaultdict
 from inspect import Parameter, Signature
 from typing import Iterable, Callable, List, Dict, Any, Optional
 
-from _pytest.fixtures import FixtureManager
+import pytest
+from _pytest.fixtures import FixtureManager, FixtureDef
 from _pytest.python import Function, CallSpec2
+from packaging import version
+
+from pytest_fixture_forms.helpers import PYTEST_VERSION
 
 
 def create_dynamic_function(original_params: list[str | Parameter], func_impl, *, required_params: list[str] = None):
@@ -285,42 +290,37 @@ def define_fixture(
     fixturemanager: Optional[FixtureManager] = None,
     autouse=False,
 ):
-    fixturemanager._register_fixture(
-        name=fixture_name,
-        func=func,
-        scope=scope,
-        params=params,
-        ids=ids,
-        nodeid=None,
-        autouse=autouse,
-    )
+    """
+    Define a fixture in the given fixturemanager with the specified parameters.
+    tested and works with pytest 7 and 8
+    """
+    # FixtureDef changed in pytest 8.1.0 without warning
+    # see https://github.com/pytest-dev/pytest/commit/372c17e22899e8e676e105dae714e897426bef86#diff-49027cfd80e14edac9b0fae71f7228a408a09599f66a7815839ce8c3ae2ab84fL973
+    if PYTEST_VERSION >= version.parse("8.1.0"):
+        # apparently this is the new way to define fixtures in pytest >8.1.0
+        return fixturemanager._register_fixture(
+            name=fixture_name,
+            func=func,
+            scope=scope,
+            params=params,
+            ids=ids,
+            nodeid=None,
+            autouse=autouse,
+        )
+    else:
+        with warnings.catch_warnings():
+            # we're doing some magic here, It's ok to directly call the internal pytest functions if we know what we are doing
+            warnings.filterwarnings("ignore", category=pytest.PytestDeprecationWarning)
+            kwargs = {
+                "fixturemanager": fixturemanager,
+                "baseid": "",
+                "argname": fixture_name,
+                "func": func,
+                "scope": scope,
+                "params": params,
+                "ids": ids,
+            }
+            fixture_def = FixtureDef(**kwargs)
+            fixturemanager._arg2fixturedefs[fixture_name] = [fixture_def]
 
 
-# def define_fixture(
-#     fixture_name: str,
-#     func: Callable,
-#     scope="function",
-#     params=None,
-#     ids=None,
-#     fixturemanager: Optional[FixtureManager] = None,
-# ):
-#     with warnings.catch_warnings():
-#         # we're doing some magic here, It's ok to directly call the internal pytest functions if we know what we are doing
-#         warnings.filterwarnings("ignore", category=pytest.PytestDeprecationWarning)
-#         kwargs = {
-#             "fixturemanager": fixturemanager,
-#             "baseid": "",
-#             "argname": fixture_name,
-#             "func": func,
-#             "scope": scope,
-#             "params": params,
-#             "ids": ids,
-#         }
-#         # FixtureDef changed in pytest 8.1.0 without warning
-#         # see https://github.com/pytest-dev/pytest/commit/372c17e22899e8e676e105dae714e897426bef86#diff-49027cfd80e14edac9b0fae71f7228a408a09599f66a7815839ce8c3ae2ab84fL973
-#         if PYTEST_VERSION >= version.parse("8.1.0"):
-#             del kwargs["fixturemanager"]
-#             kwargs["config"] = fixturemanager.config
-#         fixture_def = FixtureDef(**kwargs)
-#
-#     fixturemanager._arg2fixturedefs[fixture_name] = [fixture_def]
