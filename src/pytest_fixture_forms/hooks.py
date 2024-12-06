@@ -61,56 +61,56 @@ from pytest_fixture_forms.utils import (
 #     registry = FixtureFormsRegistry.get_instance()
 #     registry.discover_subclasses()
 
-@pytest.hookimpl(wrapper=True)
-def pytest_collection(session:Session):
-    # for cls in FixtureForms.__subclasses__():
-    #     special_params_fixtures[cls.get_instance_fixture_name()] = cls
-    #     if hasattr(cls, "_pending_fixture_registrations"):
-    #         for register in cls._pending_fixture_registrations:
-    #             register(session, **{})
-
-    # registry = FixtureFormsRegistry.get_instance()
-    # registry.discover_subclasses_from_session(session)
-    # registry.execute_registrations(session)
-
-    FixtureForms._register_pending_fixtures(session)
-
-    # return (yield)
-    # before=FixtureForms.__subclasses__()
-    test_items = yield
-    # FixtureForms._register_pending_fixtures(session)
-
-    return test_items
-    # pytest_internals["test_items"] = _get_test_functions(session)
-    # pytest_internals["fixturemanager"] = session._fixturemanager
-    # if not hasattr(session, "_notfound"):
-    #     session._notfound = []
-    # test_items = _get_test_functions(session)
-    # pytest_internals["_original_test_items"] = (
-    #     test_items  # the test items that originally collected (they would be replaced by the dynamic tests)
-    # )
-
-    # pytest_internals["session"] = session
-    # fixturedefs = session._fixturemanager._arg2fixturedefs
-    #
-    # for name, defs in fixturedefs.items():
-    #     if defs:  # Take the last fixturedef as it overrides previous ones
-    #         fixdef = defs[-1]
-    #         fixture_registry[name] = {"ids": fixdef.ids, "scope": fixdef.scope, "params": fixdef.params}
-
-    # direct_requested_fixtures = _get_direct_requested_fixtures([test_item._obj for test_item in test_items])
-    # requested_fixtures = _get_dependent_fixtures(direct_requested_fixtures, fixturedefs)
-    # if not hasattr(session, "_notfound"):
-    #     session._notfound = []
-    # pytest_internals["test_items"] = _get_test_functions(session)
-    # pytest_internals["requested_fixtures"] = requested_fixtures
-    # pytest_internals["fixturedefs"] = fixturedefs
-
-    # for cls in FixtureForms.__subclasses__():
-    #     special_params_fixtures[cls.get_instance_fixture_name()] = cls
-    # pytest_internals["special_params_fixtures"] = special_params_fixtures
-
-    # return test_items
+# @pytest.hookimpl(wrapper=True)
+# def pytest_collection(session:Session):
+#     # for cls in FixtureForms.__subclasses__():
+#     #     special_params_fixtures[cls.get_instance_fixture_name()] = cls
+#     #     if hasattr(cls, "_pending_fixture_registrations"):
+#     #         for register in cls._pending_fixture_registrations:
+#     #             register(session, **{})
+#
+#     # registry = FixtureFormsRegistry.get_instance()
+#     # registry.discover_subclasses_from_session(session)
+#     # registry.execute_registrations(session)
+#
+#     FixtureForms._register_pending_fixtures(session)
+#
+#     # return (yield)
+#     # before=FixtureForms.__subclasses__()
+#     test_items = yield
+#     FixtureForms._register_pending_fixtures(session)
+#
+#     return test_items
+#     # pytest_internals["test_items"] = _get_test_functions(session)
+#     # pytest_internals["fixturemanager"] = session._fixturemanager
+#     # if not hasattr(session, "_notfound"):
+#     #     session._notfound = []
+#     # test_items = _get_test_functions(session)
+#     # pytest_internals["_original_test_items"] = (
+#     #     test_items  # the test items that originally collected (they would be replaced by the dynamic tests)
+#     # )
+#
+#     # pytest_internals["session"] = session
+#     # fixturedefs = session._fixturemanager._arg2fixturedefs
+#     #
+#     # for name, defs in fixturedefs.items():
+#     #     if defs:  # Take the last fixturedef as it overrides previous ones
+#     #         fixdef = defs[-1]
+#     #         fixture_registry[name] = {"ids": fixdef.ids, "scope": fixdef.scope, "params": fixdef.params}
+#
+#     # direct_requested_fixtures = _get_direct_requested_fixtures([test_item._obj for test_item in test_items])
+#     # requested_fixtures = _get_dependent_fixtures(direct_requested_fixtures, fixturedefs)
+#     # if not hasattr(session, "_notfound"):
+#     #     session._notfound = []
+#     # pytest_internals["test_items"] = _get_test_functions(session)
+#     # pytest_internals["requested_fixtures"] = requested_fixtures
+#     # pytest_internals["fixturedefs"] = fixturedefs
+#
+#     # for cls in FixtureForms.__subclasses__():
+#     #     special_params_fixtures[cls.get_instance_fixture_name()] = cls
+#     # pytest_internals["special_params_fixtures"] = special_params_fixtures
+#
+#     # return test_items
 
 # @pytest.hookimpl(tryfirst=True)
 # def pytest_import_module(path, mod):
