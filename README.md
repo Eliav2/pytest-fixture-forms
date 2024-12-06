@@ -276,6 +276,36 @@ running the test would look like this:
 
 ![tmp](https://github.com/user-attachments/assets/101cb983-1027-4a50-ace5-92ffcd3a1a14)
 
+## Advanced Customization
+
+you can also create a base class that inherits from `FixtureForms` and add custom behavior:
+
+```python
+class AdvancedFixtureForms(FixtureForms):
+    def __init__(self, *args, **kwargs):
+        self.custom_form_property = None
+        super().__init__(*args, **kwargs)
+```
+then in your tests:
+```python 
+class SomeFixtureForm(AdvancedFixtureForms):
+    @pytest.fixture
+    def form1(self, set_custom_form_property):
+        assert self.custom_form_property == "custom form property value"
+        return "1"
+
+
+@pytest.fixture
+def set_custom_form_property(some_fixture_form_prototype: SomeFixtureForm):
+    some_fixture_form_prototype.custom_form_property = "custom form property value"
+
+
+def test_advanced_fixture_forms(some_fixture_form: SomeFixtureForm):
+    assert some_fixture_form.custom_form_property == "custom form property value"
+    assert some_fixture_form.value == "1"
+    print(some_fixture_form)
+```
+
 ## Contributing
 
 Contributions are welcome! This is a new project and there might be bugs or missing features. If you have any

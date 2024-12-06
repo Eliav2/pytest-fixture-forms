@@ -26,8 +26,7 @@ def pytest_pycollect_makeitem(collector, name, obj):
 
     # it's important to check if the function because our plugin is interested only in the last leaf test function,
     # while a pytest istestfunction would also accept a class method
-    if (collector.istestfunction(obj, name) and inspect.isfunction(obj)):
-
+    if collector.istestfunction(obj, name) and inspect.isfunction(obj):
         session = collector.session
         fixturedefs = session._fixturemanager._arg2fixturedefs
         if not fixturedefs:
