@@ -43,6 +43,7 @@ def pytest_pycollect_makeitem(collector, name, obj):
         first_test_item = _original_test_items[0]
         test_marks = first_test_item.own_markers
         # recreation of parameters that were originally passed to the test (closely)
+        # original_parameterized_params_vals = get_original_params_from_parametrized_node(first_test_item)
         original_parameterized_params_vals = get_original_params_from_callspecs(
             [test_item.callspec for test_item in _original_test_items if hasattr(test_item, "callspec")]
         )
@@ -63,9 +64,6 @@ def pytest_pycollect_makeitem(collector, name, obj):
             return res
         class_names = list(params2formsMap.keys())
         combinations = list(product(*params2formsMap.values()))
-        if len(combinations) == 1:
-            # no need to create a new class if there is only one combination
-            return res
         labeled_combinations = [tuple(zip(class_names, combo)) for combo in combinations]
 
         methods = {}

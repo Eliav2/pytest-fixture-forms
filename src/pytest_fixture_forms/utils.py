@@ -6,6 +6,7 @@ from inspect import Parameter, Signature
 from typing import Iterable, Callable, List, Dict, Any, Optional
 
 import pytest
+from _pytest import nodes
 from _pytest.fixtures import FixtureManager, FixtureDef
 from _pytest.python import Function, CallSpec2
 from packaging import version
@@ -99,6 +100,14 @@ def _get_parametrized_params_for_test(callspecs) -> dict:
         values = [callspec.params[param_name] for callspec in callspecs]
         params_final[param_name] = values
     return params_final
+
+def get_original_params_from_parametrized_node(node: nodes.Node) -> Dict[str, List[Any]]:
+    parameterization = {}
+    for marker in node.iter_markers(name="parametrize"):
+        if not marker.kwargs.get("indirect", False):
+            key, values = marker.args[0], marker.args[1]
+            parameterization[key] = values
+    return parameterization
 
 
 def get_original_params_from_callspecs(callspecs: List[CallSpec2]) -> Dict[str, List[Any]]:

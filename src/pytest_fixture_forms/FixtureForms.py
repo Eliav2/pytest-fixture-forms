@@ -80,14 +80,14 @@ class FixtureForms:
                     func = method.__get__(None, cls)
                 else:
                     func = method
-                func.fixture_name = fixture_name
+
                 # Get fixture parameters if the method was decorated with @pytest.fixture
                 fixture_args = get_fixture_args(func)
 
-                # # if fixture given, unwrapped it because we are making the fixture def registration ourselves in pytest_collection hook
+                # if fixture given, unwrapped it because we are making the fixture def registration ourselves in pytest_collection hook
                 unwrapped_func = func if not is_fixture(func) else func.__wrapped__
 
-                def make_wrapper(method_name):
+                def make_form_value_wrapper(method_name):
                     initial_prototype_fixture_name = cls.get_initial_prototype_fixture_name()
                     _must_params = [
                         initial_prototype_fixture_name,
@@ -113,18 +113,19 @@ class FixtureForms:
                         required_params=_must_params,
                     )
 
-                final_value_func = make_wrapper(form)
+                final_value_func = make_form_value_wrapper(form)
                 # fixture for the method value
                 define_fixture(
                     fixture_name,
                     final_value_func,
                     fixture_args.get("scope", "function"),
+                    ids=fixture_args.get("ids", None),
                     params=fixture_args.get("params", None),
                     fixturemanager=fixturemanager,
                 )
 
     @classmethod
-    def _register_forms_fixture(cls, session, **kwargs):
+    def _register_form_fixture(cls, session, **kwargs):
         """register special fixture for forms, a parameterized fixture that returns the current form name"""
         form_fixture_name = cls.get_form_fixture_name()
 
@@ -184,15 +185,17 @@ class FixtureForms:
 
     @classmethod
     def perform_fixture_registration(cls, session):
-        cls._register_instance_fixture(session)
-        cls._register_forms_fixture(session)
         cls._register_methods_as_fixtures(session)
+        cls._register_form_fixture(session)
+        cls._register_instance_fixture(session)
 
     def __init_subclass__(cls, **kwargs):
+        __tracebackhide__ = True
         cls.special_params_fixtures[cls.get_instance_fixture_name()] = cls
         # cls.__register_form_fixture()
         # cls.__register_methods_as_fixtures()
         # cls.__register_instance_fixture()
+        cls._verify_validity()
         super().__init_subclass__(**kwargs)
 
     def __repr__(self):
@@ -213,3 +216,9 @@ class FixtureForms:
 
     def request_form(self, form_name):
         return self.getfixturevalue(self.get_form_value_fixture_name(form_name))
+
+    @classmethod
+    def _verify_validity(cls):
+        __tracebackhide__ = True
+        if 'form' in cls.forms():
+            raise ValueError(f"'form' is a reserved word and cannot be used as a form name (as this class needs to define '{cls.get_form_fixture_name()}' fixture for the forms and this would conflict with the value fixture '{cls.get_form_value_fixture_name('form')}' for the 'form' form),\n please choose another name")
