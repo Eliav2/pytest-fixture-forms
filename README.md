@@ -1,5 +1,9 @@
 # pytest-fixture-forms
 
+[![PyPI version](https://img.shields.io/pypi/v/pytest-fixture-forms)](https://pypi.org/project/pytest-fixture-forms/)
+[![Python versions](https://img.shields.io/pypi/pyversions/pytest-fixture-forms)](https://pypi.org/project/pytest-fixture-forms/)
+![Pytest](https://img.shields.io/badge/pytest-7.x%20%7C%208.x-blue)
+
 A powerful pytest plugin that simplifies testing different forms of parameters through dynamic fixture generation. This
 plugin is particularly useful for API testing, integration testing, or any scenario where you need to verify behavior
 across multiple parameter variations.
