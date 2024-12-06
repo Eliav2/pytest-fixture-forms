@@ -4,7 +4,7 @@ import warnings
 from collections import defaultdict
 from inspect import Parameter, Signature
 from typing import Iterable, Callable, List, Dict, Any, Optional
-
+from ordered_set import OrderedSet
 import pytest
 from _pytest import nodes
 from _pytest.fixtures import FixtureManager, FixtureDef
@@ -21,6 +21,8 @@ def create_dynamic_function(original_params: list[str | Parameter], func_impl, *
     Args:
         original_params: List of parameter names
         func_impl: Function that receives a dict of {param_name: param_value} and implements the logic
+        required_params: List of required parameter names that would apear in the function signature, but not necessarily would be passed to the implementation function(they will be passed only if they are in the original_params list,else they would be removed before calling the implementation function)
+
 
     Returns:
         A function with the specified parameter names that delegates to func_impl
@@ -65,6 +67,7 @@ def create_dynamic_function(original_params: list[str | Parameter], func_impl, *
             for arg in bound_args.arguments.copy():
                 if arg in required_params:
                     required_bound_args[arg] = bound_args.arguments[arg]
+                    # if param in required params is not in the original params, remove it before calling the implementation function
                     if arg not in original_param_names:
                         del bound_args.arguments[arg]
             return func_impl(bound_args.arguments, required_bound_args)
@@ -133,7 +136,7 @@ def get_original_params_from_callspecs(callspecs: List[CallSpec2]) -> Dict[str, 
         return {}
 
     # First, identify all parametrized names
-    param_names = set()
+    param_names = OrderedSet()
     for spec in callspecs:
         param_names.update(spec.params.keys())
 
@@ -162,7 +165,7 @@ def get_original_params_from_callspecs(callspecs: List[CallSpec2]) -> Dict[str, 
 #
 #     for param in first_spec.params:
 #         # Get all values for this param looking at the _idlist
-#         param_ids = set()
+#         param_ids = OrderedSet()
 #         values = []
 #
 #         for spec in callspecs:
@@ -182,7 +185,7 @@ def _get_final_parametrized_values_for_fixture(fixturedefs, test_items, fixture_
     # values that were defined in the fixture
     default_params = fixturedefs[fixture_name][-1].params
     # values that were parametrized in the test
-    runtime_params = list(set(_get_parametrized_values_for_fixture(test_items, fixture_name)))
+    runtime_params = list(OrderedSet(_get_parametrized_values_for_fixture(test_items, fixture_name)))
     return runtime_params or default_params
 
 
@@ -216,11 +219,11 @@ def _get_test_functions(session) -> list[Function]:
     return functions
 
 
-def _get_direct_requested_fixtures(test_functions: Iterable[Callable]) -> set[str]:
+def _get_direct_requested_fixtures(test_functions: Iterable[Callable]) -> OrderedSet[str]:
     """
     get all requested fixtures from all test function in scope
     """
-    requested_fixtures = set()
+    requested_fixtures = OrderedSet()
     for test_function in test_functions:
         for param in inspect.signature(test_function).parameters.keys():
             requested_fixtures.add(param)
@@ -232,8 +235,8 @@ def _get_dependent_fixtures(fixture_names: Iterable[str], fixturedefs):
     recusevly get all fixtures that are dependent on the given fixture
     """
     if not fixture_names:
-        return set()
-    dependent_fixtures = set(fixture_names)
+        return OrderedSet()
+    dependent_fixtures = OrderedSet(fixture_names)
 
     for fixture in fixture_names:
         _fixture_def = fixturedefs.get(fixture)
@@ -244,7 +247,7 @@ def _get_dependent_fixtures(fixture_names: Iterable[str], fixturedefs):
         dependent_fixtures.update(_get_dependent_fixtures(fixture_args, fixturedefs))
 
     dependent_fixtures.discard("request")  # remove request fixture
-    return dependent_fixtures
+    return sorted(dependent_fixtures)
 
 
 def pascal_to_kebab_case(s):
