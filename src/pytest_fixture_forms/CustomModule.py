@@ -1,7 +1,7 @@
 import fnmatch
 from typing import Iterable
 
-from _pytest import fixtures, nodes
+from _pytest import nodes
 from _pytest.compat import safe_getattr
 from _pytest.python import Module
 
@@ -40,24 +40,3 @@ class CustomModule(Module):
             if isinstance(obj_ub, type) and issubclass(obj_ub, FixtureForms) and obj_ub != FixtureForms:
                 fixture_form_cls = obj_ub
                 fixture_form_cls.perform_fixture_registration(self.session)
-                # for form in fixture_form_cls.forms():
-                #     for fixture_name, fixture in fixture_form_cls.get_form_fixtures(form).items():
-                #         self.session._fixturemanager.add_fixture(fixture_name, fixture, self.obj)
-                # obj = obj_ub()
-                # for form in obj.forms:
-                #     for fixture_name, fixture in obj.get_form_fixtures(form).items():
-                #         self.session._fixturemanager.add_fixture(fixture_name, fixture, self.obj)
-
-    # def istestfunction(self, obj: object, name: str) -> bool:
-    #     """Override to change class name convention"""
-    #     if self.funcnamefilter(name) or self.isnosetest(obj):
-    #         if isinstance(obj, (staticmethod, classmethod)):
-    #             # staticmethods and classmethods need to be unwrapped.
-    #             obj = safe_getattr(obj, "__func__", False)
-    #         return callable(obj) and fixtures.getfixturemarker(obj) is None
-    #     else:
-    #         return False
-    #
-    # def istestclass(self, obj: object, name: str) -> bool:
-    #     """Override to change function name convention"""
-    #     return self.classnamefilter(name) or self.isnosetest(obj)

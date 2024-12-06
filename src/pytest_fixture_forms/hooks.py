@@ -10,7 +10,6 @@ from itertools import product
 
 from _pytest.python import Class, Package, Module
 import pytest
-from _pytest.main import Session
 
 from pytest_fixture_forms.FixtureForms import FixtureForms
 from pytest_fixture_forms.CustomModule import CustomModule
@@ -21,113 +20,8 @@ from pytest_fixture_forms.utils import (
     create_dynamic_function, )
 
 
-# special_params_fixtures = {}
-
-# def pytest_collection(session):
-#     """Called during collection before test items are created"""
-#     pytest_internals["fixturemanager"] = session._fixturemanager
-#     if not hasattr(session, "_notfound"):
-#         session._notfound = []
-#     test_items = _get_test_functions(session)
-#     # pytest_internals["_original_test_items"] = (
-#     #     test_items  # the test items that originally collected (they would be replaced by the dynamic tests)
-#     # )
-#     for cls in FixtureForms.__subclasses__():
-#         if hasattr(cls, "_pending_fixture_registrations"):
-#             for register in cls._pending_fixture_registrations:
-#                 register(session, **{})
-#     pytest_internals["session"] = session
-#     fixturedefs = session._fixturemanager._arg2fixturedefs
-#
-#     for name, defs in fixturedefs.items():
-#         if defs:  # Take the last fixturedef as it overrides previous ones
-#             fixdef = defs[-1]
-#             fixture_registry[name] = {"ids": fixdef.ids, "scope": fixdef.scope, "params": fixdef.params}
-#
-#     # direct_requested_fixtures = _get_direct_requested_fixtures([test_item._obj for test_item in test_items])
-#     # requested_fixtures = _get_dependent_fixtures(direct_requested_fixtures, fixturedefs)
-#     pytest_internals["test_items"] = test_items
-#     # pytest_internals["requested_fixtures"] = requested_fixtures
-#     pytest_internals["fixturedefs"] = fixturedefs
-#
-#
-#     for cls in FixtureForms.__subclasses__():
-#         special_params_fixtures[cls.get_instance_fixture_name()] = cls
-#     # pytest_internals["special_params_fixtures"] = special_params_fixtures
-
-
-# def pytest_configure(config):
-#     """Pytest hook to discover and register fixtures before collection."""
-#     registry = FixtureFormsRegistry.get_instance()
-#     registry.discover_subclasses()
-
-# @pytest.hookimpl(wrapper=True)
-# def pytest_collection(session:Session):
-#     # for cls in FixtureForms.__subclasses__():
-#     #     special_params_fixtures[cls.get_instance_fixture_name()] = cls
-#     #     if hasattr(cls, "_pending_fixture_registrations"):
-#     #         for register in cls._pending_fixture_registrations:
-#     #             register(session, **{})
-#
-#     # registry = FixtureFormsRegistry.get_instance()
-#     # registry.discover_subclasses_from_session(session)
-#     # registry.execute_registrations(session)
-#
-#     FixtureForms._register_pending_fixtures(session)
-#
-#     # return (yield)
-#     # before=FixtureForms.__subclasses__()
-#     test_items = yield
-#     FixtureForms._register_pending_fixtures(session)
-#
-#     return test_items
-#     # pytest_internals["test_items"] = _get_test_functions(session)
-#     # pytest_internals["fixturemanager"] = session._fixturemanager
-#     # if not hasattr(session, "_notfound"):
-#     #     session._notfound = []
-#     # test_items = _get_test_functions(session)
-#     # pytest_internals["_original_test_items"] = (
-#     #     test_items  # the test items that originally collected (they would be replaced by the dynamic tests)
-#     # )
-#
-#     # pytest_internals["session"] = session
-#     # fixturedefs = session._fixturemanager._arg2fixturedefs
-#     #
-#     # for name, defs in fixturedefs.items():
-#     #     if defs:  # Take the last fixturedef as it overrides previous ones
-#     #         fixdef = defs[-1]
-#     #         fixture_registry[name] = {"ids": fixdef.ids, "scope": fixdef.scope, "params": fixdef.params}
-#
-#     # direct_requested_fixtures = _get_direct_requested_fixtures([test_item._obj for test_item in test_items])
-#     # requested_fixtures = _get_dependent_fixtures(direct_requested_fixtures, fixturedefs)
-#     # if not hasattr(session, "_notfound"):
-#     #     session._notfound = []
-#     # pytest_internals["test_items"] = _get_test_functions(session)
-#     # pytest_internals["requested_fixtures"] = requested_fixtures
-#     # pytest_internals["fixturedefs"] = fixturedefs
-#
-#     # for cls in FixtureForms.__subclasses__():
-#     #     special_params_fixtures[cls.get_instance_fixture_name()] = cls
-#     # pytest_internals["special_params_fixtures"] = special_params_fixtures
-#
-#     # return test_items
-
-# @pytest.hookimpl(tryfirst=True)
-# def pytest_import_module(path, mod):
-#     pass
-# @pytest.hookimpl(tryfirst=True)
-# def pytest_plugin_registered(plugin):
-#     pass
-
 @pytest.hookimpl(wrapper=True)
 def pytest_pycollect_makeitem(collector, name, obj):
-    # print(
-    #     f"Called with: collector={collector.__class__.__name__}, name={name}, obj={obj.__class__.__name__ if hasattr(obj, '__class__') else type(obj)}"
-    # )
-
-    # if isinstance(collector, Class) and issubclass(collector.cls, TestBaseCaseV2):
-
-    # ignore items being collected before pytest_collection hook is completed
     res = yield
 
     # it's important to check if the function because our plugin is interested only in the last leaf test function,
@@ -143,14 +37,7 @@ def pytest_pycollect_makeitem(collector, name, obj):
             # don't recurse into dynamically generated tests
             return res
         _original_test_items = res
-        # test_items = _get_test_functions(session)
-        # if "fixturedefs" not in pytest_internals:
-        #     return None
-        # store the original test for later use
-        # _original_test = getattr(collector.cls, name)
-        # _original_test_items = [
-        #     test_item for test_item in test_items if test_item.originalname == name
-        # ]
+
         if not _original_test_items:
             return res
         first_test_item = _original_test_items[0]
@@ -159,11 +46,8 @@ def pytest_pycollect_makeitem(collector, name, obj):
         original_parameterized_params_vals = get_original_params_from_callspecs(
             [test_item.callspec for test_item in _original_test_items if hasattr(test_item, "callspec")]
         )
-        # fixturedefs = collector.session._fixturemanager._arg2fixturedefs
-        # fixturedefs = pytest_internals["fixturedefs"]
-        # special_params_instances_fixtures = pytest_internals["special_params_fixtures"]
+
         special_params_instances_fixtures = FixtureForms.special_params_fixtures
-        # special_params_instances_fixtures = special_params_fixtures
         direct_requested_fixtures = _get_direct_requested_fixtures([obj])
         requested_fixtures = _get_dependent_fixtures(direct_requested_fixtures, fixturedefs)
         params2formsMap = {}
@@ -202,15 +86,6 @@ def pytest_pycollect_makeitem(collector, name, obj):
                 # override original_parameterized_params_vals with the values relevant to this node (no need to request all forms)
                 form_fixture_name = cls.get_form_fixture_name()
                 parameterized_vals[form_fixture_name] = [form]
-                # only relevant owners should be requested
-                owners_fixtures = [cls.get_form_owner_fixture_name(form) for form in cls.forms()]
-                current_owner_fixture = cls.get_form_owner_fixture_name(form)
-                for p in parameterized_vals.copy():
-                    if p in owners_fixtures and p != current_owner_fixture:
-                        del parameterized_vals[p]
-                for p in requested_fixtures:
-                    if p in owners_fixtures and p != current_owner_fixture:
-                        args_to_remove.add(p)
 
             def create_test_function(args_to_remove):
                 def impl(args: dict, required_params):
@@ -287,6 +162,6 @@ def pytest_pycollect_makemodule(module_path, parent):
     return mod
 
 
-def pytest_make_parametrize_id(config, val, argname):
-    """Hook for generating test IDs for parametrized tests"""
-    return f"{argname}:{val}"
+# def pytest_make_parametrize_id(config, val, argname):
+#     """Hook for generating test IDs for parametrized tests"""
+#     return f"{argname}:{val}"

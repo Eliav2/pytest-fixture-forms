@@ -29,7 +29,6 @@ class FixtureForms:
     each fixture method in the class is considered a form, and the value of the form is the return value of the method. would generate the following fixtures:
         "my_class_<form>" - returns the value of the form, e.g, 1
 
-
     """
 
     # This is a class variable that holds the mapping between the fixture name and the subclass that defines it
@@ -68,35 +67,8 @@ class FixtureForms:
         return f"{pascal_to_snake_case(cls.__name__)}_form"
 
     @classmethod
-    def get_form_owners_fixture_name(cls):
-        return f"{pascal_to_snake_case(cls.__name__)}_owner"
-
-    @classmethod
-    def get_form_owner_fixture_name(cls, form_name):
-        return f"{pascal_to_snake_case(cls.__name__)}_{form_name}_owner"
-
-    @classmethod
-    def _schedule_fixture_registration(cls, callback):
-        if not hasattr(FixtureForms, "_pending_fixture_registrations"):
-            FixtureForms._pending_fixture_registrations = []
-        FixtureForms._pending_fixture_registrations.append(callback)
-
-    @classmethod
-    def _register_pending_fixtures(cls, session):
-        for subcls in FixtureForms.__subclasses__():
-            cls.special_params_fixtures[subcls.get_instance_fixture_name()] = subcls
-            if hasattr(subcls, "_pending_fixture_registrations"):
-                for register in subcls._pending_fixture_registrations:
-                    register(session, **{})
-
-    @classmethod
-    def __register_methods_as_fixtures(cls):
+    def _register_methods_as_fixtures(cls, session: Session, **kwargs):
         """register all methods as fixtures, and also defines owner fixture for each form"""
-
-        cls._schedule_fixture_registration(cls.register_methods_as_fixtures)
-
-    @classmethod
-    def register_methods_as_fixtures(cls, session: Session, **kwargs):
         fixturemanager = session._fixturemanager
         fixturedefs = fixturemanager._arg2fixturedefs
         for form in cls.forms():
@@ -110,32 +82,21 @@ class FixtureForms:
                     func = method
                 func.fixture_name = fixture_name
                 # Get fixture parameters if the method was decorated with @pytest.fixture
-                instance_fixture_name = cls.get_instance_fixture_name()
                 fixture_args = get_fixture_args(func)
 
                 # # if fixture given, unwrapped it because we are making the fixture def registration ourselves in pytest_collection hook
                 unwrapped_func = func if not is_fixture(func) else func.__wrapped__
-                # unwrapped_func_sig = inspect.signature(unwrapped_func)
-                form_owners_fixture_name = cls.get_form_owner_fixture_name(form)
 
                 def make_wrapper(method_name):
-                    # prototype_fixture_name = cls.get_prototype_fixture_name()
                     initial_prototype_fixture_name = cls.get_initial_prototype_fixture_name()
-                    # _form_owners_fixture_name = cls.get_form_owner_fixture_name(form)
                     _must_params = [
                         initial_prototype_fixture_name,
-                        # cls.get_form_owners_fixture_name(),
-                        # _form_owners_fixture_name,
-                        # "request",
-                        # "who",
                     ]
 
                     def impl(args: dict, required_params):
                         method = getattr(cls, method_name).__wrapped__
-                        # who = required_params["who"]
                         initial_instance = required_params[initial_prototype_fixture_name]
                         initial_instance.form = method_name
-                        # initial_instance.who = who
                         bound_method = method.__get__(None, cls)
                         # this is the actual call to the form method, we inject here the 'self' arg,
                         # and the rest of the args that user requested(which are provided by pytest fixture system)
@@ -163,13 +124,8 @@ class FixtureForms:
                 )
 
     @classmethod
-    def __register_form_fixture(cls):
-        """register special fixture for forms"""
-
-        cls._schedule_fixture_registration(cls.register_forms_fixture)
-
-    @classmethod
-    def register_forms_fixture(cls, session, **kwargs):
+    def _register_forms_fixture(cls, session, **kwargs):
+        """register special fixture for forms, a parameterized fixture that returns the current form name"""
         form_fixture_name = cls.get_form_fixture_name()
 
         fixturemanager = session._fixturemanager
@@ -183,13 +139,8 @@ class FixtureForms:
         define_fixture(form_fixture_name, forms_fixture, params=methods_names, fixturemanager=fixturemanager)
 
     @classmethod
-    def __register_instance_fixture(cls):
+    def _register_instance_fixture(cls, session, **kwargs):
         """register 3 fixtures for the instance: initial prototype, prototype, and instance"""
-
-        cls._schedule_fixture_registration(cls.register_instance_fixture)
-
-    @classmethod
-    def register_instance_fixture(cls, session, **kwargs):
         fixturemanager = session._fixturemanager
         initial_prototype_fixture_name = cls.get_initial_prototype_fixture_name()
 
@@ -219,39 +170,29 @@ class FixtureForms:
 
         def impl(args: dict):
             request = args["request"]
-            # form = args[forms_fixture_name]
             proto = args[prototype_fixture_name]
             form = proto.form
             proto_instance = args[prototype_fixture_name]
-            # val = args[cls.get_form_fixture_name(form)]
             val = request.getfixturevalue(cls.get_form_value_fixture_name(form))
             proto_instance.value = val
             return proto_instance
 
         instance_fixture_name = cls.get_instance_fixture_name()
-        # fixturedefs = session._fixturemanager._arg2fixturedefs
-        # test_items = kwargs.get("test_items", [])
-        # requested_forms = _get_final_parametrized_values_for_fixture(fixturedefs, test_items, forms_fixture_name)
-        # requested_forms_fixtures = set()
-        # for form in requested_forms:
-        #     requested_forms_fixtures.add(cls.get_form_value_fixture_name(form))
-        # values_param_name = cls.get_value_fixture_name()
         instance_fixture_func = create_dynamic_function(["request", prototype_fixture_name], impl)
 
         define_fixture(instance_fixture_name, instance_fixture_func, fixturemanager=fixturemanager)
 
     @classmethod
     def perform_fixture_registration(cls, session):
-        cls.register_instance_fixture(session)
-        cls.register_forms_fixture(session)
-        cls.register_methods_as_fixtures(session)
+        cls._register_instance_fixture(session)
+        cls._register_forms_fixture(session)
+        cls._register_methods_as_fixtures(session)
 
     def __init_subclass__(cls, **kwargs):
         cls.special_params_fixtures[cls.get_instance_fixture_name()] = cls
         # cls.__register_form_fixture()
         # cls.__register_methods_as_fixtures()
         # cls.__register_instance_fixture()
-        # cls.__register_value_fixture()
         super().__init_subclass__(**kwargs)
 
     def __repr__(self):
@@ -272,7 +213,3 @@ class FixtureForms:
 
     def request_form(self, form_name):
         return self.getfixturevalue(self.get_form_value_fixture_name(form_name))
-
-    @classmethod
-    def get_cases_fixture_name(cls):
-        return f"{pascal_to_snake_case(cls.__name__)}_case"
