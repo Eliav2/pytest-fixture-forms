@@ -59,7 +59,7 @@ jobs:
         run: |
           if [ $(git tag -l "${{ steps.get_version.outputs.version }}") ]; then
             echo "Tag ${{ steps.get_version.outputs.version }} already exists"
-            exit 0
+            exit 1
           fi
 
       - name: Create and push tag
