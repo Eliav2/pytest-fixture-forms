@@ -22,7 +22,7 @@ jobs:
       - name: Install tox
         run: pip install tox tox-gh-actions
       - name: Test with tox
-        run: tox -e py${{ matrix.python | replace('.', '') }}-${{ matrix.pytest }}
+        run: tox -e py$(echo ${{ matrix.python }} | tr -d '.')-${{ matrix.pytest }}
 
 #  publish:
 #    needs: test  # This ensures tests pass before publishing
