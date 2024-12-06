@@ -173,14 +173,16 @@ The plugin uses pytest's collection hooks to:
 
 ## Understanding Instance Fixtures Lifecycle
 
-When you create a class that inherits from `FixtureForms`, the plugin generates several instance-related fixtures that work together to provide a robust testing framework. Let's understand these fixtures and their relationships using an example:
+When you create a class that inherits from `FixtureForms`, the plugin generates several instance-related fixtures that
+work together to provide a robust testing framework. Let's understand these fixtures and their relationships using an
+example:
 
 ```python
 class KeyId(FixtureForms):
     @pytest.fixture
     def arn(self):
         return "arn:aws:123"
-    
+
     @pytest.fixture
     def id(self):
         return "123"
@@ -191,25 +193,25 @@ class KeyId(FixtureForms):
 For the `KeyId` class above, the following instance fixtures are created:
 
 1. `key_id_initial_prototype`
-   - The most basic instance fixture
-   - Not parameterized
-   - Neither `form` nor `value` are set
-   - Used internally to create the base instance that will be passed to form methods
-   - Useful when form methods or dependent fixtures need early access to the instance
+    - The most basic instance fixture
+    - Not parameterized
+    - Neither `form` nor `value` are set
+    - Used internally to create the base instance that will be passed to form methods
+    - Useful when form methods or dependent fixtures need early access to the instance
 
 2. `key_id_prototype`
-   - Built from `key_id_initial_prototype`
-   - Parameterized with forms ("arn", "id")
-   - Has `form` set but no `value`
-   - Used when you need access to the instance and form name before the value is computed
-   - Helpful for fixtures that depend on the form but not the value
+    - Built from `key_id_initial_prototype`
+    - Parameterized with forms ("arn", "id")
+    - Has `form` set but no `value`
+    - Used when you need access to the instance and form name before the value is computed
+    - Helpful for fixtures that depend on the form but not the value
 
 3. `key_id`
-   - The final, fully initialized instance
-   - Built from `key_id_prototype`
-   - Has both `form` and `value` set
-   - The value is computed by calling the corresponding form method
-   - This is typically what you'll use in your tests
+    - The final, fully initialized instance
+    - Built from `key_id_prototype`
+    - Has both `form` and `value` set
+    - The value is computed by calling the corresponding form method
+    - This is typically what you'll use in your tests
 
 ### Example: Working with Instance Fixtures
 
@@ -218,13 +220,14 @@ Here's how you might use different instance fixtures:
 ```python
 class KeyId(FixtureForms):
     @pytest.fixture
-    def arn(self,set_region):
+    def arn(self, set_region):
         # self is an instance of KeyId with form="arn", and region="us-east-1" was set because we requested the set_region fixture
         return f"arn:aws:{self.region}"
 
     @pytest.fixture
     def id(self):
         return "123"
+
 
 @pytest.fixture
 def set_region(key_id_prototype):
@@ -251,7 +254,28 @@ The lifecycle of a `FixtureForms` instance follows this sequence:
 3. Form method is called with the prototype instance as `self`
 4. `key_id` receives the computed value and becomes the final instance
 
-This design allows for complex dependencies and interactions between fixtures while maintaining clarity and preventing circular dependencies.
+This design allows for complex dependencies and interactions between fixtures while maintaining clarity and preventing
+circular dependencies.
+
+## Understanding test nodes generation
+
+Take a look at [this example test](/testing/core/test_combinations.py). It demonstrates how the plugin handles complex
+parameter combinations. The test uses 3 different parameters, each having 3 possible forms, resulting in 27 unique test
+nodes (3 x 3 x 3 combinations).
+
+What makes this plugin special is its handling of parametrized forms. When a form is parametrized, it only multiplies
+the test nodes for that specific parameter form, not all combinations. This is different from pytest's standard
+parametrization and is why we generate test nodes dynamically.
+
+Why this approach? In standard pytest, when a fixture is parametrized within a test node, those parameters become
+permanently linked to that node. This creates unwanted coupling between different parameter forms. By generating a
+unique node for each combination of parameter forms, we avoid this coupling and maintain independence between different
+parameter variations.
+
+running the test would look like this:
+
+![tmp](https://github.com/user-attachments/assets/101cb983-1027-4a50-ace5-92ffcd3a1a14)
+
 ## Contributing
 
 Contributions are welcome! This is a new project and there might be bugs or missing features. If you have any
