@@ -1,14 +1,17 @@
 import inspect
 import re
+import warnings
 from collections import defaultdict
 from inspect import Parameter, Signature
-from typing import Iterable, Callable, List, Dict, Any
+from typing import Iterable, Callable, List, Dict, Any, Optional
 
-from _pytest.fixtures import FixtureDef
-from _pytest.python import Function
-from _pytest.python import CallSpec2
+import pytest
+from _pytest import nodes
+from _pytest.fixtures import FixtureManager, FixtureDef
+from _pytest.python import Function, CallSpec2
+from packaging import version
 
-from pytest_fixture_forms.runtime import pytest_internals
+from pytest_fixture_forms.helpers import PYTEST_VERSION
 
 
 def create_dynamic_function(original_params: list[str | Parameter], func_impl, *, required_params: list[str] = None):
@@ -52,6 +55,7 @@ def create_dynamic_function(original_params: list[str | Parameter], func_impl, *
 
     # Create the function with proper signature
     def dynamic_func(*args, **kwargs):
+        __tracebackhide__ = True  # This hides this function from tracebacks
         # Bind the arguments to parameter names
         bound_args = Signature(parameters).bind(*args, **kwargs)
         bound_args.apply_defaults()
@@ -96,6 +100,14 @@ def _get_parametrized_params_for_test(callspecs) -> dict:
         values = [callspec.params[param_name] for callspec in callspecs]
         params_final[param_name] = values
     return params_final
+
+def get_original_params_from_parametrized_node(node: nodes.Node) -> Dict[str, List[Any]]:
+    parameterization = {}
+    for marker in node.iter_markers(name="parametrize"):
+        if not marker.kwargs.get("indirect", False):
+            key, values = marker.args[0], marker.args[1]
+            parameterization[key] = values
+    return parameterization
 
 
 def get_original_params_from_callspecs(callspecs: List[CallSpec2]) -> Dict[str, List[Any]]:
@@ -279,14 +291,46 @@ def get_fixture_args(method):
     }
 
 
-def define_fixture(fixture_name, func, scope="function", params=None, ids=None, autouse=False):
-    fixture_def = FixtureDef(
-        fixturemanager=pytest_internals["fixturemanager"],
-        baseid="",
-        argname=fixture_name,
-        func=func,
-        scope=scope,
-        params=params,
-        ids=ids,
-    )
-    pytest_internals["fixturemanager"]._arg2fixturedefs[fixture_name] = [fixture_def]
+def define_fixture(
+    fixture_name: str,
+    func: Callable,
+    scope="function",
+    params=None,
+    ids=None,
+    fixturemanager: Optional[FixtureManager] = None,
+    autouse=False,
+):
+    """
+    Define a fixture in the given fixturemanager with the specified parameters.
+    tested and works with pytest 7 and 8
+    """
+    # FixtureDef changed in pytest 8.1.0 without warning
+    # see https://github.com/pytest-dev/pytest/commit/372c17e22899e8e676e105dae714e897426bef86#diff-49027cfd80e14edac9b0fae71f7228a408a09599f66a7815839ce8c3ae2ab84fL973
+    if PYTEST_VERSION >= version.parse("8.1.0"):
+        # apparently this is the new way to define fixtures in pytest >8.1.0
+        return fixturemanager._register_fixture(
+            name=fixture_name,
+            func=func,
+            scope=scope,
+            params=params,
+            ids=ids,
+            nodeid=None,
+            autouse=autouse,
+        )
+    else:
+        with warnings.catch_warnings():
+            # we're doing some magic here, It's ok to directly call the internal pytest functions if we know what we are doing
+            warnings.filterwarnings("ignore", category=pytest.PytestDeprecationWarning)
+            kwargs = {
+                "fixturemanager": fixturemanager,
+                "baseid": "",
+                "argname": fixture_name,
+                "func": func,
+                "scope": scope,
+                "params": params,
+                "ids": ids,
+            }
+            fixture_def = FixtureDef(**kwargs)
+            fixturemanager._arg2fixturedefs[fixture_name] = [fixture_def]
+
+
