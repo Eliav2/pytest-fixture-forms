@@ -71,7 +71,6 @@ def pytest_pycollect_makeitem(collector, name, obj):
         if not params2formsMap:
             # no special params fixtures were requested
             return res
-        # sort to ensure xdist compatibility
         class_names = list(params2formsMap.keys())
         combinations = list(product(*params2formsMap.values()))
         labeled_combinations = [tuple(zip(class_names, combo)) for combo in combinations]
@@ -81,6 +80,7 @@ def pytest_pycollect_makeitem(collector, name, obj):
 
         for params in labeled_combinations:
             required_fixtures = OrderedSet()
+            original_args = original_args.copy()
             parameterized_vals = original_parameterized_params_vals.copy()
             # add args from original test
             for cls, form in params:
@@ -99,7 +99,12 @@ def pytest_pycollect_makeitem(collector, name, obj):
             #     parameterized_vals[form_fixture_name] = [form]
             for param in params:
                 config.hook.pytest_fixtureforms_update_test_node_parameterization(
-                    session=session, cls=param[0], form=param[1], parameterized_vals=parameterized_vals
+                    session=session,
+                    cls=param[0],
+                    form=param[1],
+                    parameterized_vals=parameterized_vals,
+                    node_args=original_args,
+                    args_to_remove=args_to_remove,
                 )
 
             def create_test_function(args_to_remove):
@@ -117,9 +122,7 @@ def pytest_pycollect_makeitem(collector, name, obj):
                 if isinstance(collector, Module):
                     # in case it's a function defined in a module, we need to add the self argument, because previously it was normal function, now it's a method under a class so pytest is going to inject the self argument as the first argument
                     final_args = ["self"] + final_args
-                _required_fixtures = [
-                    fixture for fixture in required_fixtures if fixture not in args_to_remove
-                ]
+                _required_fixtures = [fixture for fixture in required_fixtures if fixture not in args_to_remove]
                 return create_dynamic_function(
                     final_args,
                     impl,
@@ -179,11 +182,8 @@ def pytest_pycollect_makemodule(module_path, parent):
     mod: CustomModule = CustomModule.from_parent(parent, path=module_path)
     return mod
 
+
 @pytest.hookimpl
-def pytest_fixtureforms_update_test_node_parameterization(session, cls, form , parameterized_vals):
+def pytest_fixtureforms_update_test_node_parameterization(session, cls, form, parameterized_vals):
     form_fixture_name = cls.get_form_fixture_name()
     parameterized_vals[form_fixture_name] = [form]
-
-# def pytest_make_parametrize_id(config, val, argname):
-#     """Hook for generating test IDs for parametrized tests"""
-#     return f"{argname}:{val}"

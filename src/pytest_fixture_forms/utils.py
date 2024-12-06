@@ -21,6 +21,8 @@ def create_dynamic_function(original_params: list[str | Parameter], func_impl, *
     Args:
         original_params: List of parameter names
         func_impl: Function that receives a dict of {param_name: param_value} and implements the logic
+        required_params: List of required parameter names that would apear in the function signature, but not necessarily would be passed to the implementation function(they will be passed only if they are in the original_params list,else they would be removed before calling the implementation function)
+
 
     Returns:
         A function with the specified parameter names that delegates to func_impl
@@ -65,6 +67,7 @@ def create_dynamic_function(original_params: list[str | Parameter], func_impl, *
             for arg in bound_args.arguments.copy():
                 if arg in required_params:
                     required_bound_args[arg] = bound_args.arguments[arg]
+                    # if param in required params is not in the original params, remove it before calling the implementation function
                     if arg not in original_param_names:
                         del bound_args.arguments[arg]
             return func_impl(bound_args.arguments, required_bound_args)
