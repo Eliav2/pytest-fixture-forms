@@ -3,69 +3,86 @@ on:
   push:
     branches:
       - main
+      - dev
 permissions:
   contents: write
 jobs:
-  publish:
+  test:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
     steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Git
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-
-      - name: Set up Python
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.python-version }}
+      - name: Install tox
+        run: pip install tox tox-gh-actions
+      - name: Test with tox
+        run: tox
 
-      - name: Get version from pyproject.toml
-        id: get_version
-        run: |
-          python -m pip install tomli
-          VERSION=$(python -c "from configparser import ConfigParser; import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
-          echo "version=v${VERSION}" >> $GITHUB_OUTPUT
-
-      - name: Check if tag exists
-        id: check_tag
-        run: |
-          if [ $(git tag -l "${{ steps.get_version.outputs.version }}") ]; then
-            echo "Tag ${{ steps.get_version.outputs.version }} already exists"
-            exit 1
-          fi
-
-      - name: Create and push tag
-        run: |
-          git tag ${{ steps.get_version.outputs.version }}
-          git push origin ${{ steps.get_version.outputs.version }}
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.get_version.outputs.version }}
-          name: Release ${{ steps.get_version.outputs.version }}
-          draft: false
-          prerelease: false
+#  publish:
+#    needs: test  # This ensures tests pass before publishing
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      - name: Check out code
+#        uses: actions/checkout@v4
+#        with:
+#          fetch-depth: 0
 #          token: ${{ secrets.GITHUB_TOKEN }}
-          generate_release_notes: true
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install build twine
-
-      - name: Build package
-        run: python -m build
-
-      - name: Publish to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: python -m twine upload dist/*
+#
+#      - name: Configure Git
+#        run: |
+#          git config --global user.name 'github-actions[bot]'
+#          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+#
+#      - name: Set up Python
+#        uses: actions/setup-python@v4
+#        with:
+#          python-version: '3.10'
+#
+#      - name: Get version from pyproject.toml
+#        id: get_version
+#        run: |
+#          python -m pip install tomli
+#          VERSION=$(python -c "from configparser import ConfigParser; import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
+#          echo "version=v${VERSION}" >> $GITHUB_OUTPUT
+#
+#      - name: Check if tag exists
+#        id: check_tag
+#        run: |
+#          if [ $(git tag -l "${{ steps.get_version.outputs.version }}") ]; then
+#            echo "Tag ${{ steps.get_version.outputs.version }} already exists"
+#            exit 1
+#          fi
+#
+#      - name: Create and push tag
+#        run: |
+#          git tag ${{ steps.get_version.outputs.version }}
+#          git push origin ${{ steps.get_version.outputs.version }}
+#
+#      - name: Create GitHub Release
+#        uses: softprops/action-gh-release@v2
+#        with:
+#          tag_name: ${{ steps.get_version.outputs.version }}
+#          name: Release ${{ steps.get_version.outputs.version }}
+#          draft: false
+#          prerelease: false
+#          generate_release_notes: true
+#
+#      - name: Install dependencies
+#        run: |
+#          python -m pip install --upgrade pip
+#          pip install build twine
+#
+#      - name: Build package
+#        run: python -m build
+#
+#      - name: Publish to PyPI
+#        env:
+#          TWINE_USERNAME: __token__
+#          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+#        run: python -m twine upload dist/*
