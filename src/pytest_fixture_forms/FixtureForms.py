@@ -1,5 +1,5 @@
 import inspect
-from typing import Any
+from typing import Any, Type
 
 import pytest
 
@@ -32,7 +32,7 @@ class FixtureForms:
     """
 
     # This is a class variable that holds the mapping between the fixture name and the subclass that defines it
-    special_params_fixtures = {}
+    special_params_fixtures:dict[str, Type['FixtureForms']] = {}
 
     @classmethod
     def forms(cls) -> list[str]:
@@ -68,7 +68,7 @@ class FixtureForms:
 
     @classmethod
     def _register_methods_as_fixtures(cls, session: Session, **kwargs):
-        """register all methods as fixtures, and also defines owner fixture for each form"""
+        """register all methods as fixtures"""
         fixturemanager = session._fixturemanager
         fixturedefs = fixturemanager._arg2fixturedefs
         for form in cls.forms():
@@ -162,7 +162,7 @@ class FixtureForms:
             initial_proto = args[initial_prototype_fixture_name]
             form = args[forms_fixture_name]
             initial_proto.form = form
-            # value is later initialized, owner should be set by the user
+            # value is later initialized
             return initial_proto
 
         proto_fixture_func = create_dynamic_function([initial_prototype_fixture_name, forms_fixture_name], impl_proto)
