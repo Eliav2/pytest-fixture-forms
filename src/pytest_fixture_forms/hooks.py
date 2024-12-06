@@ -27,10 +27,6 @@ def pytest_addhooks(pluginmanager):
 
     pluginmanager.add_hookspecs(newhooks)
 
-# def pytest_configure(config):
-#     config.hook.pytest_fixtureforms_update_test_node_parameterization(
-#         session=None, cls="asd", form="Asd", parameterized_vals={}
-#     )
 
 @pytest.hookimpl(wrapper=True)
 def pytest_pycollect_makeitem(collector, name, obj):
@@ -74,8 +70,11 @@ def pytest_pycollect_makeitem(collector, name, obj):
         if not params2formsMap:
             # no special params fixtures were requested
             return res
-        class_names = list(params2formsMap.keys())
-        combinations = list(product(*params2formsMap.values()))
+        # sort to ensure xdist compatibility
+        sorted_items = sorted(params2formsMap.items(), key=lambda x: x[0].__name__)
+        class_names = [cls for cls, _ in sorted_items]
+        sorted_values = [values for _, values in sorted_items]
+        combinations = product(*sorted_values)
         labeled_combinations = [tuple(zip(class_names, combo)) for combo in combinations]
 
         methods = {}
@@ -115,11 +114,13 @@ def pytest_pycollect_makeitem(collector, name, obj):
                         del args["self"]
                     _original_test(**args)
 
-                final_args = [arg for arg in original_args if arg not in args_to_remove]
+                final_args = [arg for arg in original_args if arg not in sorted(args_to_remove)]
                 if isinstance(collector, Module):
                     # in case it's a function defined in a module, we need to add the self argument, because previously it was normal function, now it's a method under a class so pytest is going to inject the self argument as the first argument
                     final_args = ["self"] + final_args
-                _required_fixtures = [fixture for fixture in required_fixtures if fixture not in args_to_remove]
+                _required_fixtures = [
+                    fixture for fixture in sorted(required_fixtures) if fixture not in args_to_remove
+                ]
                 return create_dynamic_function(
                     final_args,
                     impl,
